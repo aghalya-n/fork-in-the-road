@@ -1,0 +1,2484 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3b2a24">
+  <title>Austin Lunch Club</title>
+  <meta name="description" content="Pick a Friday lunch spot, spin the wheel, map the drive, and keep score.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIINfQ3ynFec36m4BQFh6TqafM9Dny7CwtI=" crossorigin="">
+  <style>
+    :root {
+      --brown: #3b2a24;
+      --brown-2: #5a4035;
+      --purple: #d8c8ee;
+      --purple-2: #eee7f7;
+      --green: #c9dfb7;
+      --green-2: #eaf3e2;
+      --white: #fffefa;
+      --cream: #f8f4ee;
+      --ink: #302720;
+      --muted: #756c65;
+      --line: #e7ddd3;
+      --danger: #a8463b;
+      --shadow: 0 18px 45px rgba(59, 42, 36, .09);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 4%, rgba(216, 200, 238, .4), transparent 25rem),
+        radial-gradient(circle at 94% 26%, rgba(201, 223, 183, .38), transparent 27rem),
+        var(--cream);
+      font-family: "Nunito", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible {
+      outline: 3px solid rgba(111, 76, 145, .32);
+      outline-offset: 2px;
+    }
+
+    .app-shell { width: min(1500px, calc(100% - 32px)); margin: 0 auto; }
+    .site-header {
+      position: sticky;
+      z-index: 1000;
+      top: 0;
+      padding: 14px 0;
+      background: rgba(248, 244, 238, .88);
+      border-bottom: 1px solid rgba(231, 221, 211, .85);
+      backdrop-filter: blur(18px);
+    }
+    .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .brand { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
+    .brand-mark {
+      display: grid;
+      width: 46px;
+      height: 46px;
+      place-items: center;
+      color: var(--white);
+      background: var(--brown);
+      border-radius: 15px;
+      box-shadow: 0 7px 18px rgba(59, 42, 36, .17);
+      transform: rotate(-3deg);
+    }
+    .brand-mark svg { width: 27px; height: 27px; }
+    .brand-copy { line-height: 1.05; }
+    .brand-copy strong { display: block; font-size: 18px; font-weight: 900; letter-spacing: -.02em; }
+    .brand-copy span { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .nav { display: flex; align-items: center; gap: 6px; }
+    .nav a {
+      padding: 9px 13px;
+      color: var(--muted);
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .nav a:hover { color: var(--brown); background: var(--white); }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap: 28px;
+      align-items: end;
+      padding: 54px 0 28px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 13px;
+      color: var(--brown-2);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before {
+      width: 8px;
+      height: 8px;
+      content: "";
+      background: var(--green);
+      border: 2px solid var(--brown);
+      border-radius: 50%;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 790px;
+      margin-bottom: 14px;
+      color: var(--brown);
+      font-size: clamp(38px, 6vw, 72px);
+      font-weight: 900;
+      letter-spacing: -.055em;
+      line-height: .98;
+    }
+    .hero-copy > p {
+      max-width: 680px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: clamp(16px, 2vw, 19px);
+      line-height: 1.6;
+    }
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 12px;
+      background: rgba(255, 254, 250, .72);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+    }
+    .stat { padding: 15px 10px; text-align: center; }
+    .stat + .stat { border-left: 1px solid var(--line); }
+    .stat strong { display: block; color: var(--brown); font-size: 26px; font-weight: 900; }
+    .stat span { color: var(--muted); font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+
+    .card {
+      min-width: 0;
+      background: rgba(255, 254, 250, .94);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: minmax(290px, .76fr) minmax(430px, 1.12fr) minmax(330px, .9fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .section-head h2, .section-head h3 { margin-bottom: 3px; color: var(--brown); font-weight: 900; letter-spacing: -.025em; }
+    .section-head h2 { font-size: 24px; }
+    .section-head h3 { font-size: 20px; }
+    .section-head p { margin-bottom: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .section-kicker {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .btn {
+      display: inline-flex;
+      min-height: 42px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 15px;
+      color: var(--brown);
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-weight: 900;
+      line-height: 1;
+      box-shadow: 0 5px 12px rgba(59, 42, 36, .05);
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(59, 42, 36, .1); }
+    .btn:active { transform: translateY(0); }
+    .btn-primary { color: var(--white); background: var(--brown); border-color: var(--brown); }
+    .btn-green { background: var(--green); border-color: #b7d29f; }
+    .btn-purple { background: var(--purple); border-color: #c9b5e4; }
+    .btn-small { min-height: 34px; padding: 7px 11px; font-size: 12px; }
+    .btn-icon { width: 38px; min-height: 38px; padding: 0; border-radius: 12px; }
+    .btn:disabled { cursor: not-allowed; opacity: .48; transform: none; box-shadow: none; }
+    .sync-status {
+      display: inline-flex;
+      min-height: 34px;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 11px;
+      color: var(--muted);
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .sync-status::before {
+      width: 8px;
+      height: 8px;
+      content: "";
+      background: #aaa19a;
+      border-radius: 50%;
+      box-shadow: 0 0 0 3px rgba(170, 161, 154, .15);
+    }
+    .sync-status[data-state="synced"]::before { background: #6f9851; box-shadow: 0 0 0 3px rgba(111, 152, 81, .15); }
+    .sync-status[data-state="syncing"]::before { background: #9b79bd; box-shadow: 0 0 0 3px rgba(155, 121, 189, .18); animation: pulse 1s ease-in-out infinite; }
+    .sync-status[data-state="error"]::before { background: var(--danger); box-shadow: 0 0 0 3px rgba(168, 70, 59, .14); }
+    @keyframes pulse { 50% { opacity: .35; transform: scale(.8); } }
+    .link-btn {
+      padding: 0;
+      color: var(--brown-2);
+      background: none;
+      border: 0;
+      font-weight: 900;
+      text-decoration: underline;
+      text-decoration-color: var(--purple);
+      text-decoration-thickness: 3px;
+      text-underline-offset: 3px;
+    }
+
+    .field { display: grid; gap: 6px; }
+    .field label { color: var(--brown); font-size: 12px; font-weight: 900; }
+    .input, .select, .textarea {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 13px;
+      color: var(--ink);
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      outline: none;
+    }
+    .textarea { min-height: 78px; resize: vertical; }
+    .input:hover, .select:hover, .textarea:hover { border-color: #cbbcaf; }
+    .input:focus, .select:focus, .textarea:focus {
+      border-color: #a98ac8;
+      box-shadow: 0 0 0 4px rgba(216, 200, 238, .4);
+    }
+
+    .library-card { padding: 22px; }
+    .library-tools { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-bottom: 10px; }
+    .category-filter { margin-bottom: 13px; }
+    .restaurant-list {
+      display: grid;
+      max-height: 760px;
+      gap: 8px;
+      padding-right: 5px;
+      overflow-y: auto;
+      scrollbar-color: var(--purple) transparent;
+    }
+    .restaurant-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 11px 11px 11px 13px;
+      background: var(--cream);
+      border: 1px solid transparent;
+      border-radius: 15px;
+    }
+    .restaurant-item:hover { background: var(--white); border-color: var(--line); }
+    .restaurant-name { overflow: hidden; color: var(--brown); font-size: 14px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+    .restaurant-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .dot { width: 4px; height: 4px; background: var(--purple); border-radius: 50%; }
+    .restaurant-actions { display: flex; gap: 4px; }
+    .mini-action {
+      display: grid;
+      width: 31px;
+      height: 31px;
+      place-items: center;
+      color: var(--brown);
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 900;
+    }
+    .mini-action:hover { background: var(--purple-2); }
+    .empty-state {
+      padding: 30px 18px;
+      color: var(--muted);
+      background: var(--cream);
+      border: 1px dashed #cfbfb0;
+      border-radius: var(--radius-md);
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .wheel-card { padding: 22px; overflow: hidden; }
+    .pick-form {
+      display: grid;
+      grid-template-columns: .72fr 1fr auto;
+      gap: 8px;
+      align-items: end;
+      padding: 13px;
+      background: var(--purple-2);
+      border: 1px solid #ded0ef;
+      border-radius: 17px;
+    }
+    .pick-form .btn { min-height: 44px; }
+    .picks-wrap { margin: 14px 0 4px; }
+    .picks-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .picks-head span { color: var(--muted); font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+    .pick-chips { display: flex; min-height: 38px; flex-wrap: wrap; gap: 7px; }
+    .pick-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      max-width: 100%;
+      padding: 7px 9px 7px 11px;
+      color: var(--brown);
+      background: var(--green-2);
+      border: 1px solid #d4e4c7;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .pick-chip strong { overflow: hidden; max-width: 165px; text-overflow: ellipsis; white-space: nowrap; }
+    .pick-chip small { color: var(--muted); font-size: 10px; }
+    .pick-chip button {
+      display: grid;
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      place-items: center;
+      color: var(--muted);
+      background: rgba(255, 255, 255, .8);
+      border: 0;
+      border-radius: 50%;
+      line-height: 1;
+    }
+    .wheel-stage {
+      position: relative;
+      display: grid;
+      width: min(100%, 490px);
+      aspect-ratio: 1;
+      margin: 9px auto 2px;
+      place-items: center;
+    }
+    #wheelCanvas { width: 100%; height: 100%; filter: drop-shadow(0 18px 24px rgba(59, 42, 36, .15)); }
+    .wheel-pointer {
+      position: absolute;
+      z-index: 3;
+      top: 0;
+      left: 50%;
+      width: 40px;
+      height: 52px;
+      transform: translate(-50%, -6px);
+      filter: drop-shadow(0 5px 4px rgba(59, 42, 36, .18));
+    }
+    .wheel-center {
+      position: absolute;
+      display: grid;
+      width: 84px;
+      height: 84px;
+      place-items: center;
+      color: var(--white);
+      background: var(--brown);
+      border: 7px solid var(--white);
+      border-radius: 50%;
+      box-shadow: 0 9px 24px rgba(59, 42, 36, .24);
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+    .wheel-actions { display: flex; justify-content: center; margin-top: -2px; }
+    .spin-btn {
+      min-width: 180px;
+      min-height: 52px;
+      font-size: 16px;
+      box-shadow: 0 10px 20px rgba(59, 42, 36, .2);
+    }
+    .winner-card {
+      display: none;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-top: 16px;
+      padding: 16px;
+      background: var(--green-2);
+      border: 1px solid #cadfba;
+      border-radius: 17px;
+    }
+    .winner-card.show { display: grid; animation: pop-in .35s ease-out; }
+    .winner-card p { margin: 0; color: var(--muted); font-size: 11px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+    .winner-card strong { display: block; margin-top: 2px; color: var(--brown); font-size: 20px; font-weight: 900; }
+    .winner-card span { color: var(--muted); font-size: 12px; }
+    @keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+
+    .map-card { padding: 22px; }
+    .map-wrap { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 19px; }
+    #map { width: 100%; height: 365px; background: var(--green-2); }
+    .map-fallback {
+      display: none;
+      min-height: 365px;
+      padding: 30px;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      text-align: center;
+    }
+    .route-info {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .route-stat {
+      padding: 12px;
+      background: var(--cream);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    .route-stat span { display: block; color: var(--muted); font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+    .route-stat strong { display: block; margin-top: 2px; color: var(--brown); font-size: 18px; font-weight: 900; }
+    .route-destination { grid-column: 1 / -1; }
+    .route-destination strong { font-size: 14px; }
+    .route-note { min-height: 36px; margin: 11px 2px 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .map-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip { color: var(--ink); background: var(--white); }
+    .leaflet-popup-content { font-family: "Nunito", sans-serif; }
+
+    .records-section { padding: 52px 0 24px; scroll-margin-top: 76px; }
+    .records-grid { display: grid; grid-template-columns: .95fr 1.05fr; gap: 18px; }
+    .leader-card, .history-card { padding: 22px; }
+    .leader-list, .history-list { display: grid; gap: 9px; }
+    .leader-row {
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      gap: 11px;
+      align-items: center;
+      padding: 11px;
+      background: var(--cream);
+      border-radius: 15px;
+    }
+    .rank {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      color: var(--brown);
+      background: var(--purple-2);
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .leader-row:first-child .rank { background: var(--green); }
+    .leader-name { min-width: 0; }
+    .leader-name strong { display: block; overflow: hidden; color: var(--brown); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+    .leader-name span { color: var(--muted); font-size: 11px; }
+    .win-count { color: var(--brown); font-size: 20px; font-weight: 900; }
+    .history-row {
+      display: grid;
+      grid-template-columns: 48px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 11px 8px 11px 11px;
+      border-bottom: 1px solid var(--line);
+    }
+    .history-row:last-child { border-bottom: 0; }
+    .date-tile {
+      display: grid;
+      width: 48px;
+      height: 48px;
+      align-content: center;
+      color: var(--brown);
+      background: var(--green-2);
+      border-radius: 13px;
+      text-align: center;
+      line-height: 1;
+    }
+    .date-tile strong { font-size: 18px; font-weight: 900; }
+    .date-tile span { margin-top: 3px; font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+    .history-info { min-width: 0; }
+    .history-info strong { display: block; overflow: hidden; color: var(--brown); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+    .history-info span { color: var(--muted); font-size: 11px; }
+    .delete-log {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      place-items: center;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 9px;
+    }
+    .delete-log:hover { color: var(--danger); background: #f9e8e5; }
+
+    .site-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 22px 0 36px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .footer-actions { display: flex; gap: 8px; }
+
+    dialog {
+      width: min(520px, calc(100% - 30px));
+      padding: 0;
+      color: var(--ink);
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: 0 30px 80px rgba(59, 42, 36, .25);
+    }
+    dialog::backdrop { background: rgba(35, 24, 20, .52); backdrop-filter: blur(5px); }
+    .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 22px 13px; }
+    .modal-head h2 { margin-bottom: 2px; color: var(--brown); font-size: 24px; font-weight: 900; }
+    .modal-head p { margin-bottom: 0; color: var(--muted); font-size: 12px; }
+    .close-btn {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      padding: 0;
+      place-items: center;
+      color: var(--brown);
+      background: var(--cream);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font-size: 20px;
+    }
+    .modal-body { display: grid; gap: 14px; padding: 8px 22px 22px; }
+    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+    .modal-actions .danger { margin-right: auto; color: var(--danger); }
+    .setup-steps {
+      margin: 0;
+      padding: 14px 14px 14px 32px;
+      color: var(--muted);
+      background: var(--purple-2);
+      border: 1px solid #ded0ef;
+      border-radius: 15px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .setup-steps strong { color: var(--brown); }
+    .field-help { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+
+    .toast {
+      position: fixed;
+      z-index: 2000;
+      right: 20px;
+      bottom: 20px;
+      max-width: min(390px, calc(100% - 40px));
+      padding: 13px 16px;
+      color: var(--white);
+      background: var(--brown);
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(59, 42, 36, .25);
+      font-size: 13px;
+      font-weight: 800;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: .2s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    [hidden] { display: none !important; }
+    .nav a[aria-current="page"] { color: var(--brown); background: var(--white); box-shadow: 0 4px 12px rgba(59, 42, 36, .06); }
+    .tab-panel { min-height: calc(100vh - 75px); }
+    .page-panel { padding: 48px 0; }
+    .page-hero {
+      display: grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap: 30px;
+      align-items: end;
+      margin-bottom: 24px;
+    }
+    .page-hero h1 { margin-bottom: 10px; }
+    .page-hero > div > p:last-child { max-width: 680px; margin-bottom: 0; color: var(--muted); font-size: 17px; }
+    .management-library { padding: 24px; }
+    .management-library .library-tools { grid-template-columns: minmax(260px, 1fr) minmax(190px, .32fr); }
+    .management-library .category-filter { margin-bottom: 0; }
+    .management-library .restaurant-list {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      max-height: none;
+      overflow: visible;
+    }
+
+    .map-experience {
+      position: relative;
+      min-height: calc(100vh - 75px);
+      overflow: hidden;
+      background: #dfe9d9;
+      border-top: 1px solid var(--line);
+    }
+    .map-experience #map {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      background: var(--green-2);
+    }
+    .map-experience .map-fallback {
+      position: absolute;
+      z-index: 650;
+      inset: 0;
+      min-height: 0;
+      background: var(--green-2);
+    }
+    .map-list-overlay,
+    .wheel-map-overlay,
+    .route-map-overlay {
+      position: absolute;
+      z-index: 900;
+      background: rgba(255, 254, 250, .96);
+      border: 1px solid rgba(215, 204, 194, .95);
+      box-shadow: 0 14px 38px rgba(59, 42, 36, .18);
+      backdrop-filter: blur(14px);
+    }
+    .map-list-overlay {
+      top: 16px;
+      bottom: 16px;
+      left: 16px;
+      display: flex;
+      width: 340px;
+      flex-direction: column;
+      padding: 18px 13px 13px;
+      border-radius: 21px;
+    }
+    .map-overlay-head, .wheel-overlay-head, .route-title {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .map-overlay-head { padding: 0 5px; }
+    .map-overlay-head h1 {
+      margin-bottom: 11px;
+      font-size: 31px;
+      letter-spacing: -.04em;
+    }
+    .map-search { flex: 0 0 auto; }
+    .map-list-help { margin: 8px 4px 10px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+    .map-restaurant-list {
+      display: grid;
+      min-height: 0;
+      gap: 8px;
+      padding-right: 3px;
+      overflow-y: auto;
+      scrollbar-color: var(--purple) transparent;
+    }
+    .map-restaurant-card {
+      position: relative;
+      display: grid;
+      gap: 7px;
+      padding: 13px;
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      box-shadow: 0 4px 12px rgba(59, 42, 36, .05);
+      cursor: pointer;
+      transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+    }
+    .map-restaurant-card:hover {
+      border-color: #bda8d7;
+      box-shadow: 0 9px 20px rgba(59, 42, 36, .1);
+      transform: translateY(-1px);
+    }
+    .map-restaurant-card.is-active { border-color: #76579a; box-shadow: 0 0 0 3px rgba(216, 200, 238, .55); }
+    .map-restaurant-card.is-loading { opacity: .68; }
+    .map-card-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; align-items: start; }
+    .map-card-top h3 { margin: 0; overflow: hidden; color: var(--brown); font-size: 15px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+    .map-add-btn {
+      display: grid;
+      width: 31px;
+      height: 31px;
+      padding: 0;
+      place-items: center;
+      color: var(--white);
+      background: var(--brown);
+      border: 0;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .map-card-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .map-card-meta .rating { color: #765d14; }
+    .map-card-meta a.rating { text-decoration: none; }
+    .map-card-meta a.rating:hover { text-decoration: underline; text-underline-offset: 2px; }
+    .map-card-route {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-top: 7px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .map-card-route strong { color: var(--brown); font-size: 12px; }
+
+    .wheel-map-overlay {
+      top: 16px;
+      right: 16px;
+      bottom: 16px;
+      width: 425px;
+      padding: 18px;
+      overflow-y: auto;
+      border-radius: 22px;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .wheel-overlay-head h2 { margin-bottom: 9px; color: var(--brown); font-size: 23px; font-weight: 900; }
+    .wheel-date { width: 138px; margin: -44px 43px 9px auto; }
+    .wheel-date .input { min-height: 35px; padding: 6px 8px; font-size: 11px; }
+    .minimize-btn {
+      display: grid;
+      width: 34px;
+      height: 30px;
+      padding: 0 0 7px;
+      place-items: center;
+      color: var(--brown);
+      background: var(--white);
+      border: 2px solid var(--brown);
+      border-radius: 8px;
+      font-size: 24px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .map-pick-form { grid-template-columns: .8fr 1fr auto; padding: 10px; }
+    .map-pick-form .field { gap: 3px; }
+    .map-pick-form .field label { font-size: 10px; }
+    .map-pick-form .input, .map-pick-form .select { min-height: 40px; padding: 8px 10px; font-size: 12px; }
+    .wheel-map-overlay .picks-wrap { margin-top: 10px; }
+    .wheel-map-overlay .pick-chips { max-height: 70px; overflow-y: auto; }
+    .wheel-map-overlay .wheel-stage { width: min(100%, 340px); margin-top: 5px; }
+    .wheel-map-overlay .wheel-center { width: 70px; height: 70px; border-width: 6px; font-size: 12px; }
+    .wheel-map-overlay .spin-btn { min-width: 165px; min-height: 46px; }
+    .wheel-stage.is-dragover::after {
+      position: absolute;
+      z-index: 5;
+      display: grid;
+      content: "Drop restaurant on the wheel";
+      inset: 12%;
+      place-items: center;
+      color: var(--brown);
+      background: rgba(238, 231, 247, .94);
+      border: 3px dashed #76579a;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 900;
+      text-align: center;
+    }
+    .expand-wheel-btn {
+      position: absolute;
+      z-index: 910;
+      top: 18px;
+      right: 18px;
+      min-height: 46px;
+      padding: 10px 14px;
+      color: var(--white);
+      background: var(--brown);
+      border: 3px solid var(--white);
+      border-radius: 999px;
+      box-shadow: 0 10px 24px rgba(59, 42, 36, .25);
+      font-weight: 900;
+    }
+    .expand-wheel-btn span {
+      display: inline-grid;
+      min-width: 22px;
+      height: 22px;
+      margin-left: 5px;
+      padding: 0 5px;
+      place-items: center;
+      color: var(--brown);
+      background: var(--green);
+      border-radius: 999px;
+      font-size: 11px;
+    }
+    .route-map-overlay {
+      right: 457px;
+      bottom: 16px;
+      left: 372px;
+      padding: 13px;
+      border-radius: 18px;
+    }
+    .route-title { align-items: center; margin-bottom: 8px; }
+    .route-title strong { display: block; color: var(--brown); font-size: 14px; }
+    .route-map-overlay .route-info { grid-template-columns: 105px 105px minmax(160px, 1fr); margin-top: 0; }
+    .route-map-overlay .route-destination { grid-column: auto; }
+    .route-map-overlay .route-stat { padding: 8px 10px; }
+    .route-map-overlay .route-stat strong { font-size: 14px; }
+    .route-map-overlay .route-note { min-height: 0; margin: 7px 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    @media (max-width: 1180px) {
+      .map-list-overlay { width: 300px; }
+      .wheel-map-overlay { width: 370px; }
+      .route-map-overlay { right: 402px; left: 332px; }
+      .management-library .restaurant-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 980px) {
+      .map-experience { min-height: 1180px; }
+      .map-list-overlay { right: calc(50% + 4px); bottom: auto; width: auto; height: 590px; }
+      .wheel-map-overlay { bottom: auto; left: calc(50% + 4px); width: auto; height: 820px; max-height: calc(100vh - 110px); }
+      .route-map-overlay { right: 16px; bottom: 16px; left: 16px; }
+    }
+    @media (max-width: 830px) {
+      .app-shell { width: min(100% - 22px, 700px); }
+      .header-inner { flex-wrap: wrap; }
+      .nav { order: 3; width: 100%; justify-content: center; overflow-x: auto; }
+      .page-hero { grid-template-columns: 1fr; }
+      .page-panel { padding-top: 32px; }
+      .records-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 700px) {
+      .map-experience { min-height: 1510px; }
+      .map-list-overlay { top: 10px; right: 10px; left: 10px; height: 445px; }
+      .wheel-map-overlay { top: 465px; right: 10px; left: 10px; height: 820px; max-height: none; }
+      .route-map-overlay { right: 10px; bottom: 10px; left: 10px; }
+      .management-library .restaurant-list { grid-template-columns: 1fr; }
+      .management-library .library-tools { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .site-header { padding: 10px 0; }
+      .brand-mark { width: 40px; height: 40px; border-radius: 13px; }
+      .brand-copy strong { font-size: 16px; }
+      .header-inner > .btn { min-height: 38px; padding: 8px 12px; font-size: 12px; }
+      .header-actions > .btn-green { display: none; }
+      .sync-status { max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .nav { justify-content: flex-start; }
+      .nav a { flex: 0 0 auto; font-size: 12px; }
+      h1 { font-size: 42px; }
+      .hero-stats { padding: 7px; }
+      .stat { padding: 10px 4px; }
+      .stat strong { font-size: 21px; }
+      .stat span { font-size: 9px; }
+      .card { border-radius: 22px; }
+      .library-card, .leader-card, .history-card { padding: 16px; }
+      .map-pick-form { grid-template-columns: 1fr 1fr; }
+      .map-pick-form .btn { grid-column: 1 / -1; }
+      .winner-card { grid-template-columns: 1fr; }
+      .wheel-center { width: 69px; height: 69px; border-width: 6px; font-size: 12px; }
+      .route-map-overlay .route-info { grid-template-columns: 1fr 1fr; }
+      .route-map-overlay .route-destination { grid-column: 1 / -1; }
+      .route-title { align-items: flex-start; }
+      .records-section { padding-top: 34px; }
+      .site-footer { align-items: flex-start; flex-direction: column; }
+      .modal-grid { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="app-shell header-inner">
+      <a class="brand" href="#map" data-tab-target="map" aria-label="Austin Lunch Club map">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 3h16v8a8 8 0 0 1-16 0V3Z"/><path d="M8 3v8a4 4 0 0 0 8 0V3"/><path d="M12 15v6"/><path d="M8 21h8"/>
+          </svg>
+        </span>
+        <span class="brand-copy"><strong>Austin Lunch Club</strong><span>Arista Networks · Fridays</span></span>
+      </a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#map" data-tab-target="map" aria-current="page">Map & wheel</a>
+        <a href="#restaurants" data-tab-target="restaurants">Restaurant list</a>
+        <a href="#records" data-tab-target="records">Leaderboard & log</a>
+      </nav>
+      <div class="header-actions">
+        <button class="sync-status" id="syncStatus" data-state="local" type="button" data-open-sync title="Configure shared Google Sheets data">Local only</button>
+        <button class="btn btn-green" type="button" data-open-log>+ Add past lunch</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="tab-panel is-active" id="map-tab" data-tab-panel="map" aria-label="Map and restaurant wheel">
+      <div class="map-experience">
+        <div id="map" aria-label="Route map from Arista Networks Austin"></div>
+        <div class="map-fallback" id="mapFallback">The live map needs an internet connection. You can still open directions below.</div>
+
+        <aside class="map-list-overlay" aria-label="Restaurants on the map">
+          <div class="map-overlay-head">
+            <div>
+              <span class="section-kicker">From Arista Austin</span>
+              <h1>Find lunch</h1>
+            </div>
+            <button class="btn btn-icon btn-green" id="randomRestaurantBtn" type="button" title="Choose a random restaurant" aria-label="Choose a random restaurant">↝</button>
+          </div>
+          <label class="sr-only" for="mapRestaurantSearch">Search map restaurants</label>
+          <input class="input map-search" id="mapRestaurantSearch" type="search" placeholder="Search restaurants or cuisine…">
+          <p class="map-list-help">Click a card for its route. Drag it onto the wheel or use the + button.</p>
+          <div class="map-restaurant-list" id="mapRestaurantList"></div>
+        </aside>
+
+        <section class="wheel-map-overlay" id="wheelPanel" aria-labelledby="wheel-title">
+          <div class="wheel-overlay-head">
+            <div><span class="section-kicker">This Friday</span><h2 id="wheel-title">Lunch wheel</h2></div>
+            <button class="minimize-btn" id="minimizeWheelBtn" type="button" title="Minimize wheel" aria-label="Minimize wheel">−</button>
+          </div>
+          <label class="field wheel-date">
+            <span class="sr-only">Lunch date</span>
+            <input class="input" id="lunchDate" type="date">
+          </label>
+          <form class="pick-form map-pick-form" id="pickForm">
+            <div class="field">
+              <label for="pickerName">Picked by</label>
+              <input class="input" id="pickerName" autocomplete="name" maxlength="50" placeholder="Teammate name" required>
+            </div>
+            <div class="field">
+              <label for="restaurantSelect">Restaurant</label>
+              <select class="select" id="restaurantSelect" required></select>
+            </div>
+            <button class="btn btn-primary" type="submit">Add</button>
+          </form>
+          <div class="picks-wrap">
+            <div class="picks-head">
+              <span id="picksLabel">0 picks ready</span>
+              <button class="link-btn" id="clearPicksBtn" type="button">Clear</button>
+            </div>
+            <div class="pick-chips" id="pickChips">
+              <div class="empty-state" style="width:100%">Drag a restaurant here or add at least two picks.</div>
+            </div>
+          </div>
+          <div class="wheel-stage" id="wheelDropZone">
+            <canvas id="wheelCanvas" width="800" height="800" aria-label="Restaurant selection wheel"></canvas>
+            <svg class="wheel-pointer" viewBox="0 0 44 60" aria-hidden="true">
+              <path d="M22 57 3.5 14.5C.8 8.3 5.4 1.4 12.1 2l19.7 1.7c6.5.6 9.7 8.1 5.7 13.2L22 57Z" fill="#3b2a24" stroke="#fffefa" stroke-width="4"/>
+            </svg>
+            <div class="wheel-center" aria-hidden="true">SPIN</div>
+          </div>
+          <div class="wheel-actions">
+            <button class="btn btn-primary spin-btn" id="spinBtn" type="button" disabled>Spin the wheel</button>
+          </div>
+          <div class="winner-card" id="winnerCard" role="status" aria-live="polite">
+            <div><p>Today’s winner</p><strong id="winnerName">—</strong><span id="winnerPerson"></span></div>
+            <button class="btn btn-green" id="saveWinnerBtn" type="button">Save to lunch log</button>
+          </div>
+        </section>
+        <button class="expand-wheel-btn" id="expandWheelBtn" type="button" hidden>Open wheel <span id="collapsedPickCount">0</span></button>
+
+        <section class="route-map-overlay" aria-labelledby="map-title">
+          <div class="route-title">
+            <div><span class="section-kicker">Lunch run</span><strong id="map-title">Arista Austin → destination</strong></div>
+            <a class="btn btn-small" id="googleDirectionsLink" href="https://www.google.com/maps/dir/?api=1&origin=2700+Via+Fortuna,+Austin,+TX+78746" target="_blank" rel="noopener">Google Maps ↗</a>
+          </div>
+          <div class="route-info">
+            <div class="route-stat"><span>Drive time</span><strong id="routeTime">—</strong></div>
+            <div class="route-stat"><span>Distance</span><strong id="routeDistance">—</strong></div>
+            <div class="route-stat route-destination"><span>Destination</span><strong id="routeDestination">Choose a restaurant card</strong></div>
+          </div>
+          <p class="route-note" id="routeNote">Live estimates use OpenStreetMap and OSRM. Actual Friday traffic may vary.</p>
+        </section>
+      </div>
+    </section>
+
+    <section class="tab-panel page-panel" id="restaurants-tab" data-tab-panel="restaurants" hidden>
+      <div class="app-shell">
+        <section class="page-hero">
+          <div><p class="eyebrow">Restaurant library</p><h1>All the contenders.</h1><p>Add, edit, rate, or remove restaurants here. Editing is intentionally limited to this tab.</p></div>
+          <div class="hero-stats" aria-label="Lunch club totals">
+            <div class="stat"><strong id="restaurantCount">0</strong><span>Spots</span></div>
+            <div class="stat"><strong id="pickCount">0</strong><span>On wheel</span></div>
+            <div class="stat"><strong id="lunchCount">0</strong><span>Lunches</span></div>
+          </div>
+        </section>
+        <section class="card library-card management-library" id="restaurants">
+          <div class="section-head">
+            <div><span class="section-kicker">Manage restaurants</span><h2>Restaurant list</h2><p>Google ratings refresh every 21 days when Places API is configured. Manual ratings remain available as a fallback.</p></div>
+            <button class="btn btn-purple" id="addRestaurantBtn" type="button">+ Add restaurant</button>
+          </div>
+          <div class="library-tools">
+            <label class="sr-only" for="restaurantSearch">Search restaurants</label>
+            <input class="input" id="restaurantSearch" type="search" placeholder="Search restaurants…">
+            <label class="sr-only" for="categoryFilter">Filter by category</label>
+            <select class="select category-filter" id="categoryFilter"><option value="">All food types</option></select>
+          </div>
+          <div class="restaurant-list" id="restaurantList"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="tab-panel app-shell records-section" id="records-tab" data-tab-panel="records" hidden>
+      <div class="section-head">
+        <div>
+          <span class="section-kicker">Club history</span>
+          <h2>Bragging rights, preserved.</h2>
+          <p>Saving a wheel result updates both the lunch log and the leaderboard.</p>
+        </div>
+        <button class="btn btn-purple" type="button" data-open-log>+ Add past lunch</button>
+      </div>
+      <div class="records-grid">
+        <section class="card leader-card" aria-labelledby="leader-title">
+          <div class="section-head">
+            <div>
+              <h3 id="leader-title">Leaderboard</h3>
+              <p>Whose restaurant picks have won most often?</p>
+            </div>
+          </div>
+          <div class="leader-list" id="leaderList"></div>
+        </section>
+        <section class="card history-card" aria-labelledby="history-title">
+          <div class="section-head">
+            <div>
+              <h3 id="history-title">Lunch log</h3>
+              <p>Your previously chosen Friday spots.</p>
+            </div>
+            <button class="btn btn-small" type="button" data-open-log>Add entry</button>
+          </div>
+          <div class="history-list" id="historyList"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-shell site-footer">
+    <span id="storageNote">Wheel picks stay in this browser. Connect Google Sheets to share restaurants, history, and the leaderboard.</span>
+    <div class="footer-actions">
+      <input class="sr-only" id="importInput" type="file" accept=".json,application/json">
+      <button class="btn btn-small btn-purple" id="syncSettingsBtn" type="button" data-open-sync>Connect shared data</button>
+      <button class="btn btn-small" id="importBtn" type="button">Import</button>
+      <button class="btn btn-small" id="exportBtn" type="button">Export backup</button>
+    </div>
+  </footer>
+
+  <dialog id="restaurantDialog">
+    <form id="restaurantForm">
+      <div class="modal-head">
+        <div><h2 id="restaurantModalTitle">Add a restaurant</h2><p>An exact address makes route matching more reliable.</p></div>
+        <button class="close-btn" type="button" data-close-dialog aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <input id="editingRestaurantId" type="hidden">
+        <div class="field">
+          <label for="restaurantNameInput">Restaurant name</label>
+          <input class="input" id="restaurantNameInput" maxlength="100" required placeholder="e.g. Veracruz All Natural">
+        </div>
+        <div class="modal-grid">
+          <div class="field">
+            <label for="restaurantCategoryInput">Food type</label>
+            <input class="input" id="restaurantCategoryInput" list="categoryOptions" maxlength="50" required placeholder="e.g. Mexican / Tacos">
+          </div>
+          <div class="field">
+            <label for="restaurantAddressInput">Austin address <span style="color:var(--muted)">(optional)</span></label>
+            <input class="input" id="restaurantAddressInput" maxlength="180" placeholder="Street address">
+          </div>
+        </div>
+        <div class="field">
+          <label for="restaurantRatingInput">Google rating <span style="color:var(--muted)">(optional manual fallback)</span></label>
+          <input class="input" id="restaurantRatingInput" type="number" min="1" max="5" step="0.1" inputmode="decimal" placeholder="e.g. 4.6">
+          <p class="field-help">An automatic Google Places refresh will replace this value when configured.</p>
+        </div>
+        <datalist id="categoryOptions"></datalist>
+        <div class="modal-actions">
+          <button class="link-btn danger" id="deleteRestaurantBtn" type="button" hidden>Delete restaurant</button>
+          <button class="btn" type="button" data-close-dialog>Cancel</button>
+          <button class="btn btn-primary" type="submit">Save restaurant</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="logDialog">
+    <form id="logForm">
+      <div class="modal-head">
+        <div><h2>Add a past lunch</h2><p>Record a winner to update the leaderboard.</p></div>
+        <button class="close-btn" type="button" data-close-dialog aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-grid">
+          <div class="field">
+            <label for="logDate">Lunch date</label>
+            <input class="input" id="logDate" type="date" required>
+          </div>
+          <div class="field">
+            <label for="logPerson">Winning picker</label>
+            <input class="input" id="logPerson" maxlength="50" placeholder="Teammate name" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="logRestaurant">Restaurant</label>
+          <select class="select" id="logRestaurant" required></select>
+        </div>
+        <div class="field">
+          <label for="logNotes">Notes <span style="color:var(--muted)">(optional)</span></label>
+          <textarea class="textarea" id="logNotes" maxlength="240" placeholder="What did the club think?"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" type="button" data-close-dialog>Cancel</button>
+          <button class="btn btn-primary" type="submit">Add to lunch log</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="syncDialog">
+    <form id="syncForm">
+      <div class="modal-head">
+        <div><h2>Connect shared data</h2><p>Use a free Google Sheet as the club’s shared database.</p></div>
+        <button class="close-btn" type="button" data-close-dialog aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <ol class="setup-steps">
+          <li>Create a Google Sheet and install the supplied <strong>Code.gs</strong> Apps Script.</li>
+          <li>Deploy it as a web app with access set to <strong>Anyone</strong>.</li>
+          <li>Paste the deployment URL ending in <strong>/exec</strong> below.</li>
+        </ol>
+        <div class="field">
+          <label for="backendUrl">Apps Script web app URL</label>
+          <input class="input" id="backendUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://script.google.com/macros/s/…/exec">
+          <p class="field-help">Connecting migrates this browser’s existing restaurants and lunch history. Friday’s temporary wheel entries remain local.</p>
+        </div>
+        <div class="modal-actions">
+          <button class="link-btn danger" id="disconnectBackendBtn" type="button" hidden>Disconnect</button>
+          <button class="btn" type="button" data-close-dialog>Cancel</button>
+          <button class="btn btn-primary" id="connectBackendBtn" type="submit">Connect & migrate</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const STORAGE_KEY = "austinLunchClub.v1";
+      const BACKEND_KEY = "austinLunchClub.backend.v1";
+      const ROUTE_CACHE_KEY = "austinLunchClub.routes.v1";
+      const OFFICE = {
+        name: "Arista Networks Austin",
+        address: "2700 Via Fortuna, Building II, Suite 420, Austin, TX 78746",
+        lat: 30.2530,
+        lng: -97.8006
+      };
+      const PALETTE = ["#3b2a24", "#d8c8ee", "#c9dfb7", "#5a4035", "#eee7f7", "#b9d39f"];
+      const CATEGORIES = [
+        "BBQ", "Asian", "Indian", "Vegetarian / Vegan", "Burgers", "Chicken / Wings",
+        "Seafood", "Mexican / Tacos", "Pizza", "Sandwiches", "Diner / American", "Other"
+      ];
+      const DEFAULT_RESTAURANTS = [
+        ["Terry Black’s Barbecue", "BBQ"],
+        ["Burnt Beans BBQ", "BBQ"],
+        ["La Barbecue", "BBQ"],
+        ["InterStellar BBQ", "BBQ"],
+        ["Distant Relatives", "BBQ"],
+        ["KG BBQ", "BBQ"],
+        ["Moreno Barbecue", "BBQ"],
+        ["LeRoy and Lewis Barbecue", "BBQ"],
+        ["The Salt Lick BBQ", "BBQ"],
+        ["LORO Asian Smokehouse", "Asian"],
+        ["1618 Asian Fusion", "Asian"],
+        ["888 Pan Asian Restaurant", "Asian"],
+        ["Madam Mam’s", "Asian"],
+        ["Het Say Vietnamese Kitchen", "Asian"],
+        ["Ramen Tatsu-Ya", "Asian"],
+        ["Rose’s Kitchen", "Asian"],
+        ["KPOT Korean BBQ & Hot Pot", "Asian"],
+        ["Kura Revolving Sushi Bar", "Asian"],
+        ["Machi Sushi", "Asian"],
+        ["Bluefin Sushi Bar & Ramen", "Asian"],
+        ["Pho Please", "Asian"],
+        ["DK Sushi", "Asian"],
+        ["CK Kitchen & Bar", "Asian"],
+        ["Gangnam Korean BBQ", "Asian"],
+        ["TAO Restaurant", "Asian"],
+        ["Sap’s Fine Thai Cuisine", "Asian"],
+        ["Tarka Indian Kitchen", "Indian"],
+        ["Caje", "Indian"],
+        ["Nori", "Vegetarian / Vegan"],
+        ["Arlo’s", "Vegetarian / Vegan"],
+        ["Casa de Luz", "Vegetarian / Vegan"],
+        ["Mr. Natural", "Vegetarian / Vegan"],
+        ["The Vegan Nom", "Vegetarian / Vegan"],
+        ["Dan’s Hamburgers", "Burgers"],
+        ["Mighty Fine Burgers", "Burgers"],
+        ["JewBoy Burgers", "Burgers"],
+        ["Hopdoddy Burger Bar", "Burgers"],
+        ["NADC Burger", "Burgers"],
+        ["Iron Ranch Kitchen", "Burgers"],
+        ["Gus’s World Famous Fried Chicken", "Chicken / Wings"],
+        ["Tumble 22", "Chicken / Wings"],
+        ["OKO", "Chicken / Wings"],
+        ["bb.q Chicken", "Chicken / Wings"],
+        ["Spicy Boys", "Chicken / Wings"],
+        ["JABS", "Chicken / Wings"],
+        ["Salt Traders Coastal Cooking – Zilker", "Seafood"],
+        ["Lil’ Easy", "Seafood"],
+        ["Catfish Parlour", "Seafood"],
+        ["CJ’s Tacos", "Mexican / Tacos"],
+        ["Veracruz All Natural", "Mexican / Tacos"],
+        ["Arandinas", "Mexican / Tacos"],
+        ["Juan in a Million", "Mexican / Tacos"],
+        ["El Tacorrido", "Mexican / Tacos"],
+        ["Matt’s El Rancho", "Mexican / Tacos"],
+        ["Chente’s Tacos", "Mexican / Tacos"],
+        ["Chuy’s", "Mexican / Tacos"],
+        ["Enchiladas y Mas", "Mexican / Tacos"],
+        ["Cabo Bob’s", "Mexican / Tacos"],
+        ["Jalisco’s", "Mexican / Tacos"],
+        ["Mezcal & Salt", "Mexican / Tacos"],
+        ["Las Trancas", "Mexican / Tacos"],
+        ["Paprika", "Mexican / Tacos"],
+        ["Freebirds World Burrito", "Mexican / Tacos"],
+        ["Taco Joint", "Mexican / Tacos"],
+        ["El Sabor Chapin", "Mexican / Tacos"],
+        ["Pinthouse Pizza", "Pizza"],
+        ["Home Slice Pizza", "Pizza"],
+        ["The Backspace", "Pizza"],
+        ["Numero28", "Pizza"],
+        ["Via 313 Pizza", "Pizza"],
+        ["Toss Pizzeria & Pub", "Pizza"],
+        ["ThunderCloud Subs", "Sandwiches"],
+        ["Cheba Hut", "Sandwiches"],
+        ["Bella Donna Subs", "Sandwiches"],
+        ["Sayers & Co.", "Diner / American"],
+        ["Kerbey Lane Cafe", "Diner / American"],
+        ["Odd Duck", "Diner / American"],
+        ["Banger’s Sausage House & Beer Garden", "Diner / American"],
+        ["Le Café Crêpe", "Other"],
+        ["Casa Bianca", "Other"]
+      ].map(([name, category], index) => ({
+        id: `seed-${index + 1}`,
+        name,
+        category,
+        address: "",
+        rating: "",
+        seeded: true
+      }));
+
+      const els = {
+        restaurantCount: document.getElementById("restaurantCount"),
+        pickCount: document.getElementById("pickCount"),
+        lunchCount: document.getElementById("lunchCount"),
+        restaurantList: document.getElementById("restaurantList"),
+        restaurantSearch: document.getElementById("restaurantSearch"),
+        categoryFilter: document.getElementById("categoryFilter"),
+        restaurantSelect: document.getElementById("restaurantSelect"),
+        pickForm: document.getElementById("pickForm"),
+        pickerName: document.getElementById("pickerName"),
+        pickChips: document.getElementById("pickChips"),
+        picksLabel: document.getElementById("picksLabel"),
+        clearPicksBtn: document.getElementById("clearPicksBtn"),
+        spinBtn: document.getElementById("spinBtn"),
+        wheelCanvas: document.getElementById("wheelCanvas"),
+        winnerCard: document.getElementById("winnerCard"),
+        winnerName: document.getElementById("winnerName"),
+        winnerPerson: document.getElementById("winnerPerson"),
+        saveWinnerBtn: document.getElementById("saveWinnerBtn"),
+        lunchDate: document.getElementById("lunchDate"),
+        leaderList: document.getElementById("leaderList"),
+        historyList: document.getElementById("historyList"),
+        restaurantDialog: document.getElementById("restaurantDialog"),
+        restaurantForm: document.getElementById("restaurantForm"),
+        restaurantModalTitle: document.getElementById("restaurantModalTitle"),
+        editingRestaurantId: document.getElementById("editingRestaurantId"),
+        restaurantNameInput: document.getElementById("restaurantNameInput"),
+        restaurantCategoryInput: document.getElementById("restaurantCategoryInput"),
+        restaurantAddressInput: document.getElementById("restaurantAddressInput"),
+        restaurantRatingInput: document.getElementById("restaurantRatingInput"),
+        deleteRestaurantBtn: document.getElementById("deleteRestaurantBtn"),
+        logDialog: document.getElementById("logDialog"),
+        logForm: document.getElementById("logForm"),
+        logDate: document.getElementById("logDate"),
+        logPerson: document.getElementById("logPerson"),
+        logRestaurant: document.getElementById("logRestaurant"),
+        logNotes: document.getElementById("logNotes"),
+        routeTime: document.getElementById("routeTime"),
+        routeDistance: document.getElementById("routeDistance"),
+        routeDestination: document.getElementById("routeDestination"),
+        routeNote: document.getElementById("routeNote"),
+        googleDirectionsLink: document.getElementById("googleDirectionsLink"),
+        mapFallback: document.getElementById("mapFallback"),
+        toast: document.getElementById("toast"),
+        importInput: document.getElementById("importInput"),
+        syncStatus: document.getElementById("syncStatus"),
+        storageNote: document.getElementById("storageNote"),
+        syncSettingsBtn: document.getElementById("syncSettingsBtn"),
+        syncDialog: document.getElementById("syncDialog"),
+        syncForm: document.getElementById("syncForm"),
+        backendUrl: document.getElementById("backendUrl"),
+        connectBackendBtn: document.getElementById("connectBackendBtn"),
+        disconnectBackendBtn: document.getElementById("disconnectBackendBtn"),
+        mapRestaurantList: document.getElementById("mapRestaurantList"),
+        mapRestaurantSearch: document.getElementById("mapRestaurantSearch"),
+        wheelPanel: document.getElementById("wheelPanel"),
+        wheelDropZone: document.getElementById("wheelDropZone"),
+        minimizeWheelBtn: document.getElementById("minimizeWheelBtn"),
+        expandWheelBtn: document.getElementById("expandWheelBtn"),
+        collapsedPickCount: document.getElementById("collapsedPickCount")
+      };
+
+      let state = loadState();
+      let backendUrl = loadBackendUrl();
+      let routeCache = loadRouteCache();
+      let currentWinner = null;
+      let wheelRotation = -Math.PI / 2;
+      let isSpinning = false;
+      let map = null;
+      let officeMarker = null;
+      let destinationMarker = null;
+      let routeLayer = null;
+      let routeRequest = 0;
+      let toastTimer = null;
+      let syncPromise = null;
+      let lastCloudPull = 0;
+      let activeRestaurantId = "";
+      let routeLoadingId = "";
+
+      function uid(prefix) {
+        if (window.crypto && crypto.randomUUID) return `${prefix}-${crypto.randomUUID()}`;
+        return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      }
+
+      function loadState() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          if (saved && Array.isArray(saved.restaurants) && Array.isArray(saved.picks) && Array.isArray(saved.logs)) {
+            saved.pendingOps = Array.isArray(saved.pendingOps) ? saved.pendingOps : [];
+            saved.restaurants.forEach(restaurant => {
+              restaurant.rating = normalizeRating(restaurant.rating);
+            });
+            return saved;
+          }
+        } catch (error) {
+          console.warn("Could not load saved lunch club data.", error);
+        }
+        return { restaurants: DEFAULT_RESTAURANTS, picks: [], logs: [], pendingOps: [] };
+      }
+
+      function saveState() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+
+      function normalizeRating(value) {
+        const rating = Number(value);
+        return Number.isFinite(rating) && rating >= 1 && rating <= 5 ? Math.round(rating * 10) / 10 : "";
+      }
+
+      function loadRouteCache() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(ROUTE_CACHE_KEY));
+          return saved && typeof saved === "object" ? saved : {};
+        } catch (error) {
+          return {};
+        }
+      }
+
+      function saveRouteCache() {
+        localStorage.setItem(ROUTE_CACHE_KEY, JSON.stringify(routeCache));
+      }
+
+      function routeFingerprint(restaurant) {
+        return `${restaurant.name}|${restaurant.address || ""}`;
+      }
+
+      function cachedRouteFor(restaurant) {
+        const cached = routeCache[restaurant.id];
+        return cached && cached.fingerprint === routeFingerprint(restaurant) ? cached : null;
+      }
+
+      function loadBackendUrl() {
+        try {
+          return localStorage.getItem(BACKEND_KEY) || "";
+        } catch (error) {
+          return "";
+        }
+      }
+
+      function normalizeBackendUrl(value) {
+        const url = String(value || "").trim();
+        if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(url)) {
+          throw new Error("Paste the Apps Script web app URL ending in /exec.");
+        }
+        return url;
+      }
+
+      function setSyncStatus(status, detail = "") {
+        const labels = {
+          local: "Local only",
+          syncing: "Syncing…",
+          synced: "Shared data on",
+          error: "Sync issue"
+        };
+        els.syncStatus.dataset.state = status;
+        els.syncStatus.textContent = labels[status] || labels.local;
+        els.syncStatus.title = detail || (status === "synced"
+          ? "Restaurants and lunch history are shared through Google Sheets."
+          : "Configure shared Google Sheets data.");
+        els.syncSettingsBtn.textContent = backendUrl ? "Shared data settings" : "Connect shared data";
+        els.storageNote.textContent = backendUrl
+          ? "Restaurants, lunch history, and the leaderboard sync through Google Sheets. Friday wheel picks stay in this browser."
+          : "Wheel picks stay in this browser. Connect Google Sheets to share restaurants, history, and the leaderboard.";
+      }
+
+      async function cloudGet(url = backendUrl) {
+        if (!url) throw new Error("Shared data is not configured.");
+        return new Promise((resolve, reject) => {
+          const callbackName = `__austinLunchClub_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+          const script = document.createElement("script");
+          const separator = url.includes("?") ? "&" : "?";
+          const cleanup = () => {
+            clearTimeout(timeout);
+            script.remove();
+            delete window[callbackName];
+          };
+          const timeout = setTimeout(() => {
+            cleanup();
+            reject(new Error("The shared Sheet did not respond. Check the deployment URL and access setting."));
+          }, 15000);
+          window[callbackName] = payload => {
+            cleanup();
+            if (!payload || payload.ok !== true) {
+              reject(new Error(payload && payload.error ? payload.error : "Cloud request failed."));
+              return;
+            }
+            resolve(payload);
+          };
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("Could not load shared data from Google Apps Script."));
+          };
+          script.src = `${url}${separator}callback=${encodeURIComponent(callbackName)}&t=${Date.now()}`;
+          document.head.appendChild(script);
+        });
+      }
+
+      async function cloudPost(action, data, url = backendUrl) {
+        if (!url) throw new Error("Shared data is not configured.");
+        await fetch(url, {
+          method: "POST",
+          mode: "no-cors",
+          body: JSON.stringify({ action, data }),
+          redirect: "follow"
+        });
+        return { ok: true };
+      }
+
+      function queueCloudOp(action, data) {
+        if (!backendUrl) return;
+        state.pendingOps = Array.isArray(state.pendingOps) ? state.pendingOps : [];
+        state.pendingOps.push({ id: uid("op"), action, data: JSON.parse(JSON.stringify(data)) });
+        saveState();
+        flushPendingOps().catch(error => {
+          console.warn("Shared data update is queued.", error);
+          showToast("Saved here. Cloud sync will retry automatically.");
+        });
+      }
+
+      async function flushPendingOps() {
+        if (!backendUrl || !state.pendingOps || !state.pendingOps.length) return;
+        if (syncPromise) return syncPromise;
+        syncPromise = (async () => {
+          setSyncStatus("syncing");
+          while (state.pendingOps.length) {
+            const operation = state.pendingOps[0];
+            await cloudPost(operation.action, operation.data);
+            state.pendingOps.shift();
+            saveState();
+          }
+          setSyncStatus("synced");
+        })();
+        try {
+          await syncPromise;
+        } catch (error) {
+          setSyncStatus("error", error.message);
+          throw error;
+        } finally {
+          syncPromise = null;
+        }
+      }
+
+      function applyCloudData(payload) {
+        if (!Array.isArray(payload.restaurants) || !Array.isArray(payload.logs)) {
+          throw new Error("The Apps Script returned invalid lunch club data.");
+        }
+        state.restaurants = payload.restaurants.map(restaurant => ({
+          ...restaurant,
+          rating: normalizeRating(restaurant.rating)
+        }));
+        state.logs = payload.logs;
+        state.picks = state.picks.filter(pick => state.restaurants.some(restaurant => restaurant.id === pick.restaurantId));
+        saveState();
+        renderAll();
+      }
+
+      async function syncFromCloud() {
+        if (!backendUrl) {
+          setSyncStatus("local");
+          return;
+        }
+        try {
+          setSyncStatus("syncing");
+          await flushPendingOps();
+          const payload = await cloudGet();
+          applyCloudData(payload);
+          lastCloudPull = Date.now();
+          setSyncStatus("synced");
+        } catch (error) {
+          console.warn("Could not sync shared lunch data.", error);
+          setSyncStatus("error", error.message);
+        }
+      }
+
+      async function connectBackend(url) {
+        const normalizedUrl = normalizeBackendUrl(url);
+        setSyncStatus("syncing");
+        await cloudGet(normalizedUrl);
+        await cloudPost("seedRestaurants", { restaurants: state.restaurants }, normalizedUrl);
+        await cloudPost("seedLogs", { logs: state.logs }, normalizedUrl);
+        const payload = await cloudGet(normalizedUrl);
+        backendUrl = normalizedUrl;
+        localStorage.setItem(BACKEND_KEY, backendUrl);
+        state.pendingOps = [];
+        applyCloudData(payload);
+        lastCloudPull = Date.now();
+        setSyncStatus("synced");
+      }
+
+      function disconnectBackend() {
+        backendUrl = "";
+        localStorage.removeItem(BACKEND_KEY);
+        state.pendingOps = [];
+        saveState();
+        setSyncStatus("local");
+      }
+
+      function escapeHTML(value) {
+        return String(value ?? "").replace(/[&<>"']/g, char => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+        })[char]);
+      }
+
+      function normalize(value) {
+        return String(value || "").trim().toLocaleLowerCase();
+      }
+
+      function safeGoogleMapsUrl(value) {
+        const url = String(value || "");
+        return /^https:\/\/([a-z0-9-]+\.)*google\.[a-z.]+\//i.test(url) ? url : "";
+      }
+
+      function formatReviewCount(value) {
+        const count = Number(value) || 0;
+        return count ? new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(count) : "";
+      }
+
+      function randomIndex(length) {
+        if (window.crypto && crypto.getRandomValues) {
+          const max = Math.floor(0x100000000 / length) * length;
+          const array = new Uint32Array(1);
+          do crypto.getRandomValues(array); while (array[0] >= max);
+          return array[0] % length;
+        }
+        return Math.floor(Math.random() * length);
+      }
+
+      function upcomingFriday() {
+        const date = new Date();
+        const days = (5 - date.getDay() + 7) % 7;
+        date.setDate(date.getDate() + days);
+        return localDateValue(date);
+      }
+
+      function localDateValue(date) {
+        const offset = date.getTimezoneOffset();
+        return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
+      }
+
+      function restaurantById(id) {
+        return state.restaurants.find(restaurant => restaurant.id === id);
+      }
+
+      function sortedRestaurants() {
+        return [...state.restaurants].sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      function showToast(message) {
+        els.toast.textContent = message;
+        els.toast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => els.toast.classList.remove("show"), 2800);
+      }
+
+      function populateCategories() {
+        const present = [...new Set([...CATEGORIES, ...state.restaurants.map(item => item.category).filter(Boolean)])]
+          .sort((a, b) => a.localeCompare(b));
+        const current = els.categoryFilter.value;
+        els.categoryFilter.innerHTML = `<option value="">All food types</option>${present.map(category =>
+          `<option value="${escapeHTML(category)}">${escapeHTML(category)}</option>`).join("")}`;
+        els.categoryFilter.value = present.includes(current) ? current : "";
+        document.getElementById("categoryOptions").innerHTML = present.map(category =>
+          `<option value="${escapeHTML(category)}"></option>`).join("");
+      }
+
+      function renderRestaurantOptions() {
+        const options = sortedRestaurants().map(restaurant =>
+          `<option value="${escapeHTML(restaurant.id)}">${escapeHTML(restaurant.name)} · ${escapeHTML(restaurant.category)}</option>`
+        ).join("");
+        const pickValue = els.restaurantSelect.value;
+        const logValue = els.logRestaurant.value;
+        els.restaurantSelect.innerHTML = `<option value="">Choose a restaurant…</option>${options}`;
+        els.logRestaurant.innerHTML = `<option value="">Choose a restaurant…</option>${options}`;
+        if (state.restaurants.some(item => item.id === pickValue)) els.restaurantSelect.value = pickValue;
+        if (state.restaurants.some(item => item.id === logValue)) els.logRestaurant.value = logValue;
+      }
+
+      function renderRestaurantList() {
+        const search = normalize(els.restaurantSearch.value);
+        const category = els.categoryFilter.value;
+        const matches = sortedRestaurants().filter(restaurant => {
+          const matchesText = !search || normalize(`${restaurant.name} ${restaurant.category} ${restaurant.address}`).includes(search);
+          return matchesText && (!category || restaurant.category === category);
+        });
+        if (!matches.length) {
+          els.restaurantList.innerHTML = `<div class="empty-state">No restaurants match those filters.</div>`;
+          return;
+        }
+        els.restaurantList.innerHTML = matches.map(restaurant => `
+          <article class="restaurant-item">
+            <div>
+              <div class="restaurant-name" title="${escapeHTML(restaurant.name)}">${escapeHTML(restaurant.name)}</div>
+              <div class="restaurant-meta"><span>${escapeHTML(restaurant.category)}</span>${restaurant.rating ? `<span class="dot"></span><span>★ ${restaurant.rating.toFixed(1)}</span>` : ""}${restaurant.address ? `<span class="dot"></span><span>Address saved</span>` : ""}</div>
+            </div>
+            <div class="restaurant-actions">
+              <button class="mini-action" type="button" data-map-restaurant="${escapeHTML(restaurant.id)}" title="Preview route to ${escapeHTML(restaurant.name)}" aria-label="Preview route to ${escapeHTML(restaurant.name)}">⌖</button>
+              <button class="mini-action" type="button" data-edit-restaurant="${escapeHTML(restaurant.id)}" title="Edit ${escapeHTML(restaurant.name)}" aria-label="Edit ${escapeHTML(restaurant.name)}">✎</button>
+              <button class="mini-action" type="button" data-pick-restaurant="${escapeHTML(restaurant.id)}" title="Add ${escapeHTML(restaurant.name)} to the wheel" aria-label="Add ${escapeHTML(restaurant.name)} to the wheel">+</button>
+            </div>
+          </article>
+        `).join("");
+      }
+
+      function renderMapRestaurantList() {
+        const search = normalize(els.mapRestaurantSearch.value);
+        const matches = sortedRestaurants().filter(restaurant =>
+          !search || normalize(`${restaurant.name} ${restaurant.category} ${restaurant.address}`).includes(search)
+        );
+        if (!matches.length) {
+          els.mapRestaurantList.innerHTML = `<div class="empty-state">No restaurants match that search.</div>`;
+          return;
+        }
+        els.mapRestaurantList.innerHTML = matches.map(restaurant => {
+          const cached = cachedRouteFor(restaurant);
+          const isLoading = routeLoadingId === restaurant.id;
+          const driveLabel = isLoading ? "Calculating…" : cached ? `${cached.minutes} min` : "Click for drive time";
+          const distanceLabel = cached ? `${cached.miles} mi from office` : "Route from Arista Austin";
+          const reviewCount = formatReviewCount(restaurant.ratingCount);
+          const ratingLabel = restaurant.rating
+            ? `★ ${restaurant.rating.toFixed(1)} Google${reviewCount ? ` (${reviewCount})` : ""}`
+            : "☆ Rating not added";
+          const googleMapsUrl = safeGoogleMapsUrl(restaurant.googleMapsUrl);
+          const ratingMarkup = googleMapsUrl
+            ? `<a class="rating" href="${escapeHTML(googleMapsUrl)}" target="_blank" rel="noopener">${escapeHTML(ratingLabel)}</a>`
+            : `<span class="rating">${escapeHTML(ratingLabel)}</span>`;
+          return `
+            <article class="map-restaurant-card${activeRestaurantId === restaurant.id ? " is-active" : ""}${isLoading ? " is-loading" : ""}"
+              draggable="true" data-map-card data-restaurant-id="${escapeHTML(restaurant.id)}" tabindex="0"
+              aria-label="${escapeHTML(restaurant.name)}. ${escapeHTML(restaurant.category)}. ${escapeHTML(driveLabel)}">
+              <div class="map-card-top">
+                <h3 title="${escapeHTML(restaurant.name)}">${escapeHTML(restaurant.name)}</h3>
+                <button class="map-add-btn" type="button" data-add-from-map="${escapeHTML(restaurant.id)}" title="Add ${escapeHTML(restaurant.name)} to wheel" aria-label="Add ${escapeHTML(restaurant.name)} to wheel">+</button>
+              </div>
+              <div class="map-card-meta"><span>${escapeHTML(restaurant.category)}</span>${ratingMarkup}</div>
+              <div class="map-card-route"><span>${escapeHTML(distanceLabel)}</span><strong>${escapeHTML(driveLabel)}</strong></div>
+            </article>
+          `;
+        }).join("");
+      }
+
+      function renderPicks() {
+        const picks = state.picks.filter(pick => restaurantById(pick.restaurantId));
+        if (picks.length !== state.picks.length) {
+          state.picks = picks;
+          saveState();
+        }
+        els.picksLabel.textContent = `${picks.length} ${picks.length === 1 ? "pick" : "picks"} ready`;
+        els.clearPicksBtn.disabled = !picks.length || isSpinning;
+        els.spinBtn.disabled = picks.length < 2 || isSpinning;
+        els.spinBtn.textContent = isSpinning ? "Spinning…" : "Spin the wheel";
+        els.collapsedPickCount.textContent = picks.length;
+        if (!picks.length) {
+          els.pickChips.innerHTML = `<div class="empty-state" style="width:100%">Drag a restaurant here or add at least two picks.</div>`;
+        } else {
+          els.pickChips.innerHTML = picks.map(pick => {
+            const restaurant = restaurantById(pick.restaurantId);
+            return `<div class="pick-chip"><strong>${escapeHTML(restaurant.name)}</strong><small>${escapeHTML(pick.person)}</small><button type="button" data-remove-pick="${escapeHTML(pick.id)}" aria-label="Remove ${escapeHTML(restaurant.name)}">×</button></div>`;
+          }).join("");
+        }
+        drawWheel();
+        updateStats();
+      }
+
+      function renderRecords() {
+        const counts = new Map();
+        state.logs.forEach(log => {
+          const key = normalize(log.person);
+          if (!key) return;
+          const record = counts.get(key) || { name: log.person.trim(), count: 0, latest: "" };
+          record.count += 1;
+          if (!record.latest || log.date > record.latest) record.latest = log.date;
+          counts.set(key, record);
+        });
+        const leaders = [...counts.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+        els.leaderList.innerHTML = leaders.length ? leaders.map((leader, index) => `
+          <div class="leader-row">
+            <div class="rank">${index === 0 ? "★" : index + 1}</div>
+            <div class="leader-name"><strong>${escapeHTML(leader.name)}</strong><span>${leader.count === 1 ? "1 winning pick" : `${leader.count} winning picks`}</span></div>
+            <div class="win-count">${leader.count}</div>
+          </div>
+        `).join("") : `<div class="empty-state">No champions yet. Save the first wheel winner to start the leaderboard.</div>`;
+
+        const logs = [...state.logs].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+        els.historyList.innerHTML = logs.length ? logs.map(log => {
+          const date = new Date(`${log.date}T12:00:00`);
+          const valid = !Number.isNaN(date.getTime());
+          const day = valid ? date.getDate() : "—";
+          const month = valid ? date.toLocaleDateString(undefined, { month: "short" }) : "";
+          return `
+            <article class="history-row" title="${escapeHTML(log.notes || "")}">
+              <div class="date-tile"><strong>${day}</strong><span>${escapeHTML(month)}</span></div>
+              <div class="history-info"><strong>${escapeHTML(log.restaurantName)}</strong><span>Picked by ${escapeHTML(log.person)}${log.notes ? ` · ${escapeHTML(log.notes)}` : ""}</span></div>
+              <button class="delete-log" type="button" data-delete-log="${escapeHTML(log.id)}" title="Delete log entry" aria-label="Delete ${escapeHTML(log.restaurantName)} from the lunch log">×</button>
+            </article>
+          `;
+        }).join("") : `<div class="empty-state">Your Friday lunch history will appear here.</div>`;
+        updateStats();
+      }
+
+      function updateStats() {
+        els.restaurantCount.textContent = state.restaurants.length;
+        els.pickCount.textContent = state.picks.length;
+        els.lunchCount.textContent = state.logs.length;
+      }
+
+      function renderAll() {
+        populateCategories();
+        renderRestaurantOptions();
+        renderRestaurantList();
+        renderMapRestaurantList();
+        renderPicks();
+        renderRecords();
+      }
+
+      function addPick(person, restaurantId) {
+        const restaurant = restaurantById(restaurantId);
+        if (!restaurant) return;
+        const existingPerson = state.picks.find(pick => normalize(pick.person) === normalize(person));
+        if (existingPerson) {
+          existingPerson.restaurantId = restaurantId;
+          existingPerson.person = person.trim();
+          showToast(`${person.trim()}’s pick was updated.`);
+        } else {
+          state.picks.push({ id: uid("pick"), person: person.trim(), restaurantId });
+          showToast(`${restaurant.name} is on the wheel.`);
+        }
+        currentWinner = null;
+        els.winnerCard.classList.remove("show");
+        saveState();
+        renderPicks();
+      }
+
+      function fitCanvas() {
+        const rect = els.wheelCanvas.getBoundingClientRect();
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        const width = Math.max(300, Math.round(rect.width * ratio));
+        if (els.wheelCanvas.width !== width || els.wheelCanvas.height !== width) {
+          els.wheelCanvas.width = width;
+          els.wheelCanvas.height = width;
+        }
+      }
+
+      function truncateLabel(text, max) {
+        return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+      }
+
+      function drawWheel() {
+        fitCanvas();
+        const canvas = els.wheelCanvas;
+        const ctx = canvas.getContext("2d");
+        const size = canvas.width;
+        const center = size / 2;
+        const radius = size * .465;
+        const picks = state.picks.filter(pick => restaurantById(pick.restaurantId));
+        ctx.clearRect(0, 0, size, size);
+        ctx.save();
+        ctx.translate(center, center);
+
+        if (!picks.length) {
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, 0, Math.PI * 2);
+          ctx.fillStyle = "#eee7f7";
+          ctx.fill();
+          ctx.lineWidth = size * .014;
+          ctx.strokeStyle = "#fffefa";
+          ctx.stroke();
+          ctx.fillStyle = "#756c65";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = `800 ${size * .035}px Nunito, sans-serif`;
+          ctx.fillText("YOUR PICKS GO HERE", 0, -size * .16);
+          ctx.restore();
+          return;
+        }
+
+        const arc = Math.PI * 2 / picks.length;
+        picks.forEach((pick, index) => {
+          const start = wheelRotation + index * arc;
+          const end = start + arc;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.arc(0, 0, radius, start, end);
+          ctx.closePath();
+          ctx.fillStyle = PALETTE[index % PALETTE.length];
+          ctx.fill();
+          ctx.lineWidth = Math.max(2, size * .006);
+          ctx.strokeStyle = "#fffefa";
+          ctx.stroke();
+
+          const restaurant = restaurantById(pick.restaurantId);
+          const mid = start + arc / 2;
+          const darkSlice = index % PALETTE.length === 0 || index % PALETTE.length === 3;
+          ctx.save();
+          ctx.rotate(mid);
+          ctx.translate(radius * .58, 0);
+          if (mid > Math.PI / 2 && mid < Math.PI * 1.5) ctx.rotate(Math.PI);
+          ctx.fillStyle = darkSlice ? "#fffefa" : "#3b2a24";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const fontSize = Math.max(size * .018, Math.min(size * .033, size * (.19 / Math.max(picks.length, 3))));
+          ctx.font = `900 ${fontSize}px Nunito, sans-serif`;
+          const maxChars = picks.length > 10 ? 12 : picks.length > 6 ? 16 : 21;
+          ctx.fillText(truncateLabel(restaurant.name, maxChars), 0, -fontSize * .42);
+          ctx.globalAlpha = .78;
+          ctx.font = `700 ${fontSize * .7}px Nunito, sans-serif`;
+          ctx.fillText(truncateLabel(pick.person, 16), 0, fontSize * .72);
+          ctx.restore();
+        });
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.lineWidth = size * .014;
+        ctx.strokeStyle = "#fffefa";
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function spinWheel() {
+        const picks = state.picks.filter(pick => restaurantById(pick.restaurantId));
+        if (picks.length < 2 || isSpinning) return;
+        isSpinning = true;
+        currentWinner = null;
+        els.winnerCard.classList.remove("show");
+        renderPicks();
+
+        const winnerIndex = randomIndex(picks.length);
+        const arc = Math.PI * 2 / picks.length;
+        const pointerAngle = -Math.PI / 2;
+        const normalized = ((wheelRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        const desired = ((pointerAngle - (winnerIndex + .5) * arc) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+        const delta = (desired - normalized + Math.PI * 2) % (Math.PI * 2);
+        const startRotation = wheelRotation;
+        const endRotation = startRotation + Math.PI * 2 * 7 + delta;
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const duration = reduceMotion ? 80 : 4600;
+        const startTime = performance.now();
+
+        function animate(now) {
+          const progress = Math.min(1, (now - startTime) / duration);
+          const eased = 1 - Math.pow(1 - progress, 5);
+          wheelRotation = startRotation + (endRotation - startRotation) * eased;
+          drawWheel();
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            wheelRotation = ((endRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+            isSpinning = false;
+            currentWinner = picks[winnerIndex];
+            const restaurant = restaurantById(currentWinner.restaurantId);
+            els.winnerName.textContent = restaurant.name;
+            els.winnerPerson.textContent = `${currentWinner.person} brought the winning pick`;
+            els.winnerCard.classList.add("show");
+            renderPicks();
+            showRoute(restaurant);
+            if (navigator.vibrate) navigator.vibrate([50, 40, 80]);
+          }
+        }
+        requestAnimationFrame(animate);
+      }
+
+      function openRestaurantDialog(id = "") {
+        const restaurant = id ? restaurantById(id) : null;
+        els.restaurantForm.reset();
+        els.editingRestaurantId.value = restaurant ? restaurant.id : "";
+        els.restaurantModalTitle.textContent = restaurant ? "Edit restaurant" : "Add a restaurant";
+        els.deleteRestaurantBtn.hidden = !restaurant;
+        if (restaurant) {
+          els.restaurantNameInput.value = restaurant.name;
+          els.restaurantCategoryInput.value = restaurant.category;
+          els.restaurantAddressInput.value = restaurant.address || "";
+          els.restaurantRatingInput.value = restaurant.rating || "";
+        }
+        els.restaurantDialog.showModal();
+        requestAnimationFrame(() => els.restaurantNameInput.focus());
+      }
+
+      function closeDialog(dialog) {
+        if (dialog.open) dialog.close();
+      }
+
+      function saveWinner() {
+        if (!currentWinner) return;
+        const restaurant = restaurantById(currentWinner.restaurantId);
+        if (!restaurant) return;
+        const date = els.lunchDate.value || upcomingFriday();
+        const duplicate = state.logs.some(log =>
+          log.date === date && normalize(log.restaurantName) === normalize(restaurant.name) && normalize(log.person) === normalize(currentWinner.person)
+        );
+        if (duplicate) {
+          showToast("That winner is already in the lunch log.");
+          return;
+        }
+        const log = {
+          id: uid("log"),
+          date,
+          restaurantId: restaurant.id,
+          restaurantName: restaurant.name,
+          person: currentWinner.person,
+          notes: "",
+          createdAt: Date.now()
+        };
+        state.logs.push(log);
+        saveState();
+        queueCloudOp("upsertLog", { log });
+        renderRecords();
+        els.saveWinnerBtn.disabled = true;
+        els.saveWinnerBtn.textContent = "Saved";
+        showToast("Winner saved. Leaderboard updated!");
+      }
+
+      function initMap() {
+        if (!window.L) {
+          document.getElementById("map").style.display = "none";
+          els.mapFallback.style.display = "flex";
+          return;
+        }
+        map = L.map("map", { zoomControl: true, scrollWheelZoom: false }).setView([OFFICE.lat, OFFICE.lng], 12);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(map);
+        const officeIcon = L.divIcon({
+          className: "",
+          html: `<div style="display:grid;width:34px;height:34px;place-items:center;color:#fffefa;background:#3b2a24;border:4px solid #fffefa;border-radius:50%;box-shadow:0 4px 12px rgba(59,42,36,.3);font:900 11px Nunito">A</div>`,
+          iconSize: [34, 34],
+          iconAnchor: [17, 17]
+        });
+        officeMarker = L.marker([OFFICE.lat, OFFICE.lng], { icon: officeIcon }).addTo(map)
+          .bindPopup(`<strong>${OFFICE.name}</strong><br>${OFFICE.address}`);
+        setTimeout(() => map.invalidateSize(), 100);
+      }
+
+      async function geocodeRestaurant(restaurant) {
+        const query = restaurant.address
+          ? `${restaurant.address}, Austin, Texas`
+          : `${restaurant.name}, Austin, Texas`;
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=us&viewbox=-98.10,30.55,-97.45,29.95&bounded=0&q=${encodeURIComponent(query)}`, {
+          headers: { "Accept": "application/json" }
+        });
+        if (!response.ok) throw new Error("Place search failed");
+        const results = await response.json();
+        if (!results.length) throw new Error("Restaurant not found");
+        return {
+          lat: Number(results[0].lat),
+          lng: Number(results[0].lon),
+          displayName: results[0].display_name
+        };
+      }
+
+      async function showRoute(restaurant) {
+        const requestId = ++routeRequest;
+        activeRestaurantId = restaurant.id;
+        routeLoadingId = restaurant.id;
+        renderMapRestaurantList();
+        els.routeDestination.textContent = restaurant.name;
+        els.routeTime.textContent = "…";
+        els.routeDistance.textContent = "…";
+        els.routeNote.textContent = "Finding the restaurant and calculating the drive…";
+        const destinationQuery = restaurant.address || `${restaurant.name}, Austin, TX`;
+        els.googleDirectionsLink.href = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(OFFICE.address)}&destination=${encodeURIComponent(destinationQuery)}&travelmode=driving`;
+
+        try {
+          const cached = cachedRouteFor(restaurant);
+          const place = cached && Number.isFinite(cached.lat) && Number.isFinite(cached.lng)
+            ? { lat: cached.lat, lng: cached.lng, displayName: cached.displayName }
+            : await geocodeRestaurant(restaurant);
+          if (requestId !== routeRequest) return;
+          if (map) {
+            if (destinationMarker) destinationMarker.remove();
+            destinationMarker = L.marker([place.lat, place.lng]).addTo(map)
+              .bindPopup(`<strong>${escapeHTML(restaurant.name)}</strong><br>${escapeHTML(place.displayName)}`)
+              .openPopup();
+          }
+
+          const routeUrl = `https://router.project-osrm.org/route/v1/driving/${OFFICE.lng},${OFFICE.lat};${place.lng},${place.lat}?overview=full&geometries=geojson&steps=false`;
+          const response = await fetch(routeUrl);
+          if (!response.ok) throw new Error("Route calculation failed");
+          const data = await response.json();
+          if (requestId !== routeRequest) return;
+          if (!data.routes || !data.routes.length) throw new Error("No driving route found");
+          const route = data.routes[0];
+          const minutes = Math.max(1, Math.round(route.duration / 60));
+          const miles = (route.distance / 1609.344).toFixed(1);
+          els.routeTime.textContent = `${minutes} min`;
+          els.routeDistance.textContent = `${miles} mi`;
+          els.routeNote.textContent = restaurant.address || place.displayName;
+          routeCache[restaurant.id] = {
+            fingerprint: routeFingerprint(restaurant),
+            lat: place.lat,
+            lng: place.lng,
+            displayName: place.displayName,
+            minutes,
+            miles,
+            updatedAt: Date.now()
+          };
+          saveRouteCache();
+          if (map) {
+            if (routeLayer) routeLayer.remove();
+            routeLayer = L.geoJSON(route.geometry, { style: { color: "#6f4c91", weight: 6, opacity: .8 } }).addTo(map);
+            map.fitBounds(routeLayer.getBounds(), {
+              paddingTopLeft: window.innerWidth > 980 ? [370, 50] : [40, 40],
+              paddingBottomRight: window.innerWidth > 980 ? [450, 150] : [40, 170]
+            });
+          }
+        } catch (error) {
+          if (requestId !== routeRequest) return;
+          els.routeTime.textContent = "—";
+          els.routeDistance.textContent = "—";
+          els.routeNote.textContent = "Couldn’t match this location automatically. Add its exact street address using the edit button, or open Google Maps.";
+          if (map) map.setView([OFFICE.lat, OFFICE.lng], 12);
+          console.warn(error);
+        } finally {
+          if (requestId === routeRequest) {
+            routeLoadingId = "";
+            renderMapRestaurantList();
+          }
+        }
+      }
+
+      function exportData() {
+        const payload = {
+          app: "Austin Lunch Club",
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          data: state
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `austin-lunch-club-${localDateValue(new Date())}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        showToast("Backup downloaded.");
+      }
+
+      function importData(file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(reader.result);
+            const incoming = parsed.data || parsed;
+            if (!Array.isArray(incoming.restaurants) || !Array.isArray(incoming.picks) || !Array.isArray(incoming.logs)) {
+              throw new Error("Invalid backup shape");
+            }
+            state = incoming;
+            state.pendingOps = [];
+            state.restaurants.forEach(restaurant => {
+              restaurant.rating = normalizeRating(restaurant.rating);
+            });
+            currentWinner = null;
+            saveState();
+            renderAll();
+            showToast("Backup imported.");
+            if (backendUrl) {
+              setSyncStatus("syncing");
+              Promise.resolve()
+                .then(() => cloudPost("seedRestaurants", { restaurants: state.restaurants }))
+                .then(() => cloudPost("seedLogs", { logs: state.logs }))
+                .then(syncFromCloud)
+                .catch(error => {
+                  console.warn("Could not copy imported data to the shared Sheet.", error);
+                  setSyncStatus("error", error.message);
+                  showToast("Imported here, but the shared Sheet could not be updated.");
+                });
+            }
+          } catch (error) {
+            showToast("That file is not a valid lunch club backup.");
+          }
+          els.importInput.value = "";
+        };
+        reader.readAsText(file);
+      }
+
+      function activateTab(tab, updateHash = true) {
+        const target = document.querySelector(`[data-tab-panel="${tab}"]`) || document.querySelector('[data-tab-panel="map"]');
+        const activeTab = target.dataset.tabPanel;
+        document.querySelectorAll("[data-tab-panel]").forEach(panel => {
+          panel.hidden = panel !== target;
+          panel.classList.toggle("is-active", panel === target);
+        });
+        document.querySelectorAll("[data-tab-target]").forEach(link => {
+          if (link.dataset.tabTarget === activeTab) link.setAttribute("aria-current", "page");
+          else link.removeAttribute("aria-current");
+        });
+        if (updateHash && location.hash !== `#${activeTab}`) history.pushState(null, "", `#${activeTab}`);
+        window.scrollTo({ top: 0, behavior: "auto" });
+        if (activeTab === "map") {
+          setTimeout(() => {
+            if (map) map.invalidateSize();
+            drawWheel();
+          }, 60);
+        }
+      }
+
+      function addRestaurantFromMap(restaurantId) {
+        const restaurant = restaurantById(restaurantId);
+        if (!restaurant) return;
+        const person = els.pickerName.value.trim();
+        els.restaurantSelect.value = restaurantId;
+        if (!person) {
+          setWheelCollapsed(false);
+          showToast("Add the teammate’s name, then add the restaurant.");
+          els.pickerName.focus();
+          return;
+        }
+        addPick(person, restaurantId);
+        els.pickerName.value = "";
+        els.restaurantSelect.value = "";
+        els.pickerName.focus();
+      }
+
+      function setWheelCollapsed(collapsed) {
+        els.wheelPanel.hidden = collapsed;
+        els.expandWheelBtn.hidden = !collapsed;
+        if (!collapsed) setTimeout(drawWheel, 30);
+        if (map) setTimeout(() => map.invalidateSize(), 220);
+      }
+
+      document.querySelectorAll("[data-tab-target]").forEach(link => link.addEventListener("click", event => {
+        event.preventDefault();
+        activateTab(link.dataset.tabTarget);
+      }));
+      window.addEventListener("hashchange", () => {
+        const tab = location.hash.replace("#", "");
+        if (["map", "restaurants", "records"].includes(tab)) activateTab(tab, false);
+      });
+
+      els.restaurantSearch.addEventListener("input", renderRestaurantList);
+      els.categoryFilter.addEventListener("change", renderRestaurantList);
+      els.mapRestaurantSearch.addEventListener("input", renderMapRestaurantList);
+      document.getElementById("addRestaurantBtn").addEventListener("click", () => openRestaurantDialog());
+      document.getElementById("randomRestaurantBtn").addEventListener("click", () => {
+        const candidates = sortedRestaurants().filter(restaurant =>
+          !normalize(els.mapRestaurantSearch.value) ||
+          normalize(`${restaurant.name} ${restaurant.category}`).includes(normalize(els.mapRestaurantSearch.value))
+        );
+        if (!candidates.length) return showToast("No restaurants match that search.");
+        const restaurant = candidates[randomIndex(candidates.length)];
+        els.restaurantSelect.value = restaurant.id;
+        showRoute(restaurant);
+        showToast(`${restaurant.name} selected. Add a teammate name to put it on the wheel.`);
+        els.pickerName.focus();
+      });
+
+      els.restaurantList.addEventListener("click", event => {
+        const pickButton = event.target.closest("[data-pick-restaurant]");
+        const editButton = event.target.closest("[data-edit-restaurant]");
+        const mapButton = event.target.closest("[data-map-restaurant]");
+        if (pickButton) {
+          activateTab("map");
+          setWheelCollapsed(false);
+          els.restaurantSelect.value = pickButton.dataset.pickRestaurant;
+          els.pickerName.focus();
+        }
+        if (editButton) openRestaurantDialog(editButton.dataset.editRestaurant);
+        if (mapButton) {
+          const restaurant = restaurantById(mapButton.dataset.mapRestaurant);
+          if (restaurant) {
+            activateTab("map");
+            setTimeout(() => showRoute(restaurant), 70);
+          }
+        }
+      });
+
+      els.mapRestaurantList.addEventListener("click", event => {
+        if (event.target.closest("a")) return;
+        const addButton = event.target.closest("[data-add-from-map]");
+        if (addButton) {
+          event.stopPropagation();
+          addRestaurantFromMap(addButton.dataset.addFromMap);
+          return;
+        }
+        const card = event.target.closest("[data-map-card]");
+        if (!card) return;
+        const restaurant = restaurantById(card.dataset.restaurantId);
+        if (restaurant) showRoute(restaurant);
+      });
+      els.mapRestaurantList.addEventListener("keydown", event => {
+        if (!["Enter", " "].includes(event.key) || event.target.closest("button")) return;
+        const card = event.target.closest("[data-map-card]");
+        if (!card) return;
+        event.preventDefault();
+        const restaurant = restaurantById(card.dataset.restaurantId);
+        if (restaurant) showRoute(restaurant);
+      });
+      els.mapRestaurantList.addEventListener("dragstart", event => {
+        const card = event.target.closest("[data-map-card]");
+        if (!card) return;
+        event.dataTransfer.effectAllowed = "copy";
+        event.dataTransfer.setData("text/plain", card.dataset.restaurantId);
+      });
+      els.wheelDropZone.addEventListener("dragover", event => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        els.wheelDropZone.classList.add("is-dragover");
+      });
+      els.wheelDropZone.addEventListener("dragleave", event => {
+        if (!els.wheelDropZone.contains(event.relatedTarget)) els.wheelDropZone.classList.remove("is-dragover");
+      });
+      els.wheelDropZone.addEventListener("drop", event => {
+        event.preventDefault();
+        els.wheelDropZone.classList.remove("is-dragover");
+        addRestaurantFromMap(event.dataTransfer.getData("text/plain"));
+      });
+      els.minimizeWheelBtn.addEventListener("click", () => setWheelCollapsed(true));
+      els.expandWheelBtn.addEventListener("click", () => setWheelCollapsed(false));
+
+      els.pickForm.addEventListener("submit", event => {
+        event.preventDefault();
+        const person = els.pickerName.value.trim();
+        const restaurantId = els.restaurantSelect.value;
+        if (!person || !restaurantId) return;
+        addPick(person, restaurantId);
+        els.pickerName.value = "";
+        els.restaurantSelect.value = "";
+        els.pickerName.focus();
+      });
+
+      els.pickChips.addEventListener("click", event => {
+        const button = event.target.closest("[data-remove-pick]");
+        if (!button || isSpinning) return;
+        state.picks = state.picks.filter(pick => pick.id !== button.dataset.removePick);
+        currentWinner = null;
+        els.winnerCard.classList.remove("show");
+        saveState();
+        renderPicks();
+      });
+
+      els.clearPicksBtn.addEventListener("click", () => {
+        if (isSpinning || !state.picks.length) return;
+        state.picks = [];
+        currentWinner = null;
+        els.winnerCard.classList.remove("show");
+        saveState();
+        renderPicks();
+      });
+      els.spinBtn.addEventListener("click", spinWheel);
+      els.saveWinnerBtn.addEventListener("click", saveWinner);
+
+      els.restaurantForm.addEventListener("submit", event => {
+        event.preventDefault();
+        const id = els.editingRestaurantId.value;
+        const name = els.restaurantNameInput.value.trim();
+        const category = els.restaurantCategoryInput.value.trim();
+        const address = els.restaurantAddressInput.value.trim();
+        const rating = normalizeRating(els.restaurantRatingInput.value);
+        if (els.restaurantRatingInput.value && rating === "") return showToast("Rating must be between 1.0 and 5.0.");
+        const duplicate = state.restaurants.find(item => normalize(item.name) === normalize(name) && item.id !== id);
+        if (duplicate) return showToast("That restaurant is already in the list.");
+        let savedRestaurant;
+        const changedLogs = [];
+        if (id) {
+          const restaurant = restaurantById(id);
+          if (!restaurant) return;
+          Object.assign(restaurant, { name, category, address, rating });
+          delete routeCache[id];
+          saveRouteCache();
+          state.logs.forEach(log => {
+            if (log.restaurantId === id) {
+              log.restaurantName = name;
+              changedLogs.push(log);
+            }
+          });
+          savedRestaurant = restaurant;
+          showToast("Restaurant updated.");
+        } else {
+          savedRestaurant = { id: uid("restaurant"), name, category, address, rating, seeded: false };
+          state.restaurants.push(savedRestaurant);
+          showToast("Restaurant added to the list.");
+        }
+        saveState();
+        queueCloudOp("upsertRestaurant", { restaurant: savedRestaurant });
+        changedLogs.forEach(log => queueCloudOp("upsertLog", { log }));
+        closeDialog(els.restaurantDialog);
+        renderAll();
+      });
+
+      els.deleteRestaurantBtn.addEventListener("click", () => {
+        const id = els.editingRestaurantId.value;
+        const restaurant = restaurantById(id);
+        if (!restaurant) return;
+        if (!window.confirm(`Delete ${restaurant.name} from the restaurant list? Past lunch log entries will be kept.`)) return;
+        state.restaurants = state.restaurants.filter(item => item.id !== id);
+        state.picks = state.picks.filter(pick => pick.restaurantId !== id);
+        delete routeCache[id];
+        saveRouteCache();
+        saveState();
+        queueCloudOp("deleteRestaurant", { id });
+        closeDialog(els.restaurantDialog);
+        renderAll();
+        showToast("Restaurant deleted.");
+      });
+
+      document.querySelectorAll("[data-open-log]").forEach(button => button.addEventListener("click", () => {
+        els.logForm.reset();
+        els.logDate.value = els.lunchDate.value || upcomingFriday();
+        els.logDialog.showModal();
+        requestAnimationFrame(() => els.logPerson.focus());
+      }));
+
+      els.logForm.addEventListener("submit", event => {
+        event.preventDefault();
+        const restaurant = restaurantById(els.logRestaurant.value);
+        if (!restaurant) return;
+        const log = {
+          id: uid("log"),
+          date: els.logDate.value,
+          restaurantId: restaurant.id,
+          restaurantName: restaurant.name,
+          person: els.logPerson.value.trim(),
+          notes: els.logNotes.value.trim(),
+          createdAt: Date.now()
+        };
+        state.logs.push(log);
+        saveState();
+        queueCloudOp("upsertLog", { log });
+        closeDialog(els.logDialog);
+        renderRecords();
+        showToast("Past lunch added.");
+      });
+
+      els.historyList.addEventListener("click", event => {
+        const button = event.target.closest("[data-delete-log]");
+        if (!button) return;
+        const id = button.dataset.deleteLog;
+        state.logs = state.logs.filter(log => log.id !== id);
+        saveState();
+        queueCloudOp("deleteLog", { id });
+        renderRecords();
+        showToast("Lunch log entry removed.");
+      });
+
+      document.querySelectorAll("[data-open-sync]").forEach(button => button.addEventListener("click", () => {
+        els.backendUrl.value = backendUrl;
+        els.disconnectBackendBtn.hidden = !backendUrl;
+        els.connectBackendBtn.textContent = backendUrl ? "Sync now" : "Connect & migrate";
+        els.syncDialog.showModal();
+        requestAnimationFrame(() => els.backendUrl.focus());
+      }));
+
+      els.syncForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        els.connectBackendBtn.disabled = true;
+        const oldLabel = els.connectBackendBtn.textContent;
+        els.connectBackendBtn.textContent = "Connecting…";
+        try {
+          const requestedUrl = normalizeBackendUrl(els.backendUrl.value);
+          if (backendUrl && requestedUrl === backendUrl) {
+            await flushPendingOps();
+            const payload = await cloudGet();
+            applyCloudData(payload);
+            lastCloudPull = Date.now();
+            setSyncStatus("synced");
+            showToast("Shared lunch data is up to date.");
+          } else {
+            await connectBackend(requestedUrl);
+            showToast("Shared data connected. Local history was migrated.");
+          }
+          closeDialog(els.syncDialog);
+        } catch (error) {
+          console.warn("Could not connect shared data.", error);
+          setSyncStatus(backendUrl ? "error" : "local", error.message);
+          showToast(error.message || "Could not connect to the shared Sheet.");
+        } finally {
+          els.connectBackendBtn.disabled = false;
+          els.connectBackendBtn.textContent = backendUrl ? "Sync now" : oldLabel;
+          els.disconnectBackendBtn.hidden = !backendUrl;
+        }
+      });
+
+      els.disconnectBackendBtn.addEventListener("click", () => {
+        if (!window.confirm("Disconnect this browser from the shared Google Sheet? Shared data already in the Sheet will not be deleted.")) return;
+        disconnectBackend();
+        closeDialog(els.syncDialog);
+        showToast("Shared data disconnected. This browser is using its local copy.");
+      });
+
+      document.querySelectorAll("[data-close-dialog]").forEach(button => button.addEventListener("click", () => {
+        closeDialog(button.closest("dialog"));
+      }));
+      document.querySelectorAll("dialog").forEach(dialog => dialog.addEventListener("click", event => {
+        if (event.target === dialog) closeDialog(dialog);
+      }));
+
+      document.getElementById("exportBtn").addEventListener("click", exportData);
+      document.getElementById("importBtn").addEventListener("click", () => els.importInput.click());
+      els.importInput.addEventListener("change", () => {
+        if (els.importInput.files[0]) importData(els.importInput.files[0]);
+      });
+
+      window.addEventListener("resize", drawWheel);
+      if ("ResizeObserver" in window) new ResizeObserver(drawWheel).observe(els.wheelCanvas);
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && backendUrl && Date.now() - lastCloudPull > 30000) syncFromCloud();
+      });
+
+      els.lunchDate.value = upcomingFriday();
+      els.logDate.value = upcomingFriday();
+      renderAll();
+      const initialTab = ["map", "restaurants", "records"].includes(location.hash.replace("#", ""))
+        ? location.hash.replace("#", "")
+        : "map";
+      activateTab(initialTab, false);
+      setSyncStatus(backendUrl ? "syncing" : "local");
+      initMap();
+      if (backendUrl) syncFromCloud();
+    })();
+  </script>
+</body>
+</html>
