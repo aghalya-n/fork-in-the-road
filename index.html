@@ -1268,6 +1268,10 @@
     .map-card-route strong { color: var(--brown); font-size: 12px; }
 
     .wheel-map-overlay {
+      --wheel-collapse-x: -2px;
+      --wheel-collapse-y: 0px;
+      --wheel-collapse-scale-x: .26;
+      --wheel-collapse-scale-y: .06;
       top: 16px;
       right: 16px;
       bottom: 16px;
@@ -1277,14 +1281,23 @@
       flex-direction: column;
       overflow-y: auto;
       border-radius: 22px;
-      transition: opacity .32s ease, transform .36s cubic-bezier(.4, 0, .2, 1);
-      will-change: opacity, transform;
+      transform-origin: top right;
+      transition:
+        opacity .38s ease,
+        transform .44s cubic-bezier(.55, 0, .2, 1),
+        border-radius .4s ease,
+        filter .4s ease;
+      will-change: opacity, transform, border-radius, filter;
     }
     .wheel-map-overlay.is-entering,
     .wheel-map-overlay.is-leaving {
       pointer-events: none;
       opacity: 0;
-      transform: translateX(calc(100% + 32px));
+      border-radius: 999px;
+      filter: blur(2px);
+      transform:
+        translate(var(--wheel-collapse-x), var(--wheel-collapse-y))
+        scale(var(--wheel-collapse-scale-x), var(--wheel-collapse-scale-y));
     }
     .wheel-overlay-head { align-items: center; margin-bottom: 10px; }
     .wheel-overlay-head h2 { margin-bottom: 0; color: var(--brown); font-size: 23px; font-weight: 900; }
@@ -1411,6 +1424,11 @@
       background: var(--green);
       border-radius: 999px;
       font-size: 11px;
+    }
+    .expand-wheel-btn.is-appearing { animation: open-wheel-arrive .22s ease-out; }
+    @keyframes open-wheel-arrive {
+      from { opacity: 0; transform: scale(.86); }
+      to { opacity: 1; transform: scale(1); }
     }
     .route-map-overlay {
       right: 457px;
@@ -1544,7 +1562,17 @@
       .site-header .header-inner, .site-footer { width: calc(100% - 28px); }
       .map-experience { min-height: 1510px; }
       .map-list-overlay { top: 10px; right: 10px; left: 10px; height: 445px; }
-      .wheel-map-overlay { top: 465px; right: 10px; left: 10px; height: 820px; max-height: none; }
+      .wheel-map-overlay {
+        --wheel-collapse-x: -8px;
+        --wheel-collapse-y: -447px;
+        --wheel-collapse-scale-x: .18;
+        --wheel-collapse-scale-y: .056;
+        top: 465px;
+        right: 10px;
+        left: 10px;
+        height: 820px;
+        max-height: none;
+      }
       .route-map-overlay { right: 10px; bottom: 10px; left: 10px; }
       .map-experience.wheel-is-collapsed .route-map-overlay { right: 58px; left: 10px; }
       .management-library .restaurant-list { grid-template-columns: 1fr; }
@@ -3914,7 +3942,7 @@
       function setWheelCollapsed(collapsed) {
         const panel = els.wheelPanel;
         const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        const duration = reduceMotion ? 0 : 380;
+        const duration = reduceMotion ? 0 : 470;
         clearTimeout(wheelTransitionTimer);
 
         if (collapsed) {
@@ -3932,6 +3960,7 @@
             panel.hidden = true;
             panel.classList.remove("is-leaving");
             els.expandWheelBtn.hidden = false;
+            els.expandWheelBtn.classList.add("is-appearing");
             if (map) map.invalidateSize();
           };
           if (duration) wheelTransitionTimer = setTimeout(finishCollapse, duration);
@@ -3948,6 +3977,7 @@
         panel.classList.remove("is-leaving");
         panel.classList.add("is-entering");
         panel.removeAttribute("aria-hidden");
+        els.expandWheelBtn.classList.remove("is-appearing");
         els.expandWheelBtn.hidden = true;
         els.mapExperience.classList.remove("wheel-is-collapsed");
         setTimeout(drawWheel, 30);
