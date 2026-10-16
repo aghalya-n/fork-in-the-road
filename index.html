@@ -395,8 +395,10 @@
     .restaurant-copy { padding: 7px 0; }
     .restaurant-name { display: flex; min-width: 0; align-items: center; gap: 5px; color: var(--brown); font-family: var(--font-heading); font-size: 14px; font-weight: 900; }
     .restaurant-name-text { overflow: hidden; min-width: 0; text-overflow: ellipsis; white-space: nowrap; }
+    .visited-status { display: inline-flex; min-width: 0; flex: 0 0 auto; align-items: center; gap: 4px; }
     .visited-icon { position: relative; display: inline-grid; width: 14px; height: 14px; flex: 0 0 14px; place-items: center; color: var(--brown); }
     .visited-icon svg { display: block; width: 14px; height: 14px; }
+    .visited-label { color: var(--muted); font-family: var(--font-body); font-size: 10px; font-weight: 500; white-space: nowrap; }
     .restaurant-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; color: var(--muted); font-size: 11px; }
     .dot { width: 4px; height: 4px; background: var(--purple); border-radius: 50%; }
     .restaurant-actions { display: flex; gap: 4px; }
@@ -801,7 +803,7 @@
       text-decoration-color: var(--purple);
       text-underline-offset: 3px;
     }
-    .restaurant-combobox { position: relative; }
+    .restaurant-combobox { position: relative; min-width: 0; }
     .combo-trigger {
       display: flex;
       align-items: center;
@@ -813,6 +815,8 @@
     }
     .combo-trigger.is-placeholder { color: rgba(117, 108, 101, .62); }
     .combo-trigger span:first-child {
+      min-width: 0;
+      flex: 1 1 auto;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1311,7 +1315,7 @@
     }
     .minimize-btn { flex: 0 0 38px; }
     .map-pick-form { grid-template-columns: .8fr 1fr; padding: 10px; }
-    .map-pick-form .field { gap: 3px; }
+    .map-pick-form .field { min-width: 0; gap: 3px; }
     .map-pick-form .field label { font-size: 10px; }
     .map-pick-form .input, .map-pick-form .select { min-height: 40px; padding: 8px 10px; font-size: 12px; }
     .wheel-map-overlay .picks-wrap {
@@ -1381,7 +1385,7 @@
       transition: width .2s ease;
     }
     .wheel-map-overlay:has(.winner-card.show) .wheel-stage { width: min(100%, 280px); }
-    .wheel-map-overlay .wheel-actions { flex: 0 0 auto; margin-bottom: 0; }
+    .wheel-map-overlay .wheel-actions { flex: 0 0 auto; margin-top: 6px; margin-bottom: 0; }
     .wheel-map-overlay .wheel-center { width: 70px; height: 70px; border-width: 6px; font-size: 12px; }
     .wheel-map-overlay .spin-btn { min-width: 165px; min-height: 46px; }
     .wheel-stage.is-dragover::after {
@@ -1772,7 +1776,7 @@
             <div class="wheel-center" aria-hidden="true">SPIN</div>
           </div>
           <div class="wheel-actions">
-            <button class="btn btn-primary spin-btn" id="spinBtn" type="button" disabled>Spin the wheel</button>
+            <button class="btn btn-green spin-btn" id="spinBtn" type="button" disabled>Spin the wheel</button>
           </div>
           <div class="winner-card" id="winnerCard" role="status" aria-live="polite">
             <div><p>Today’s winner</p><strong id="winnerName">—</strong><span id="winnerPerson"></span></div>
@@ -3065,11 +3069,28 @@
         if (context !== "log") addReadyWheelPick();
       }
 
-      function restaurantWasVisited(restaurant) {
-        return state.logs.some(log =>
+      function restaurantVisitLabel(restaurant) {
+        const visits = state.logs.filter(log =>
           (log.restaurantId && log.restaurantId === restaurant.id)
           || normalize(log.restaurantName) === normalize(restaurant.name)
         );
+        if (!visits.length) return "";
+        const latestVisit = visits.reduce((latest, log) => {
+          const date = parseLocalDate(log.date);
+          const createdAt = new Date(Number(log.createdAt) || 0);
+          const timestamp = date
+            ? Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+            : Number.isNaN(createdAt.getTime())
+              ? 0
+              : Date.UTC(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate());
+          return timestamp > latest ? timestamp : latest;
+        }, 0);
+        if (!latestVisit) return "visited";
+        const today = new Date();
+        const todayTimestamp = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+        const daysAgo = Math.max(0, Math.round((todayTimestamp - latestVisit) / 86400000));
+        if (daysAgo === 0) return "today";
+        return daysAgo === 1 ? "1 day ago" : `${daysAgo} days ago`;
       }
 
       function renderRestaurantList() {
@@ -3082,27 +3103,30 @@
           els.restaurantList.innerHTML = `<div class="empty-state">No restaurants match those filters.</div>`;
           return;
         }
-        els.restaurantList.innerHTML = matches.map(restaurant => `
-          <article class="restaurant-item">
-            <div class="restaurant-copy">
-              <div class="restaurant-name" title="${escapeHTML(restaurant.name)}">
-                <span class="restaurant-name-text">${escapeHTML(restaurant.name)}</span>
-                ${restaurantWasVisited(restaurant) ? `<span class="visited-icon" data-tooltip="visited" aria-label="Visited">${LOG_ICONS.visited}</span>` : ""}
+        els.restaurantList.innerHTML = matches.map(restaurant => {
+          const visitLabel = restaurantVisitLabel(restaurant);
+          return `
+            <article class="restaurant-item">
+              <div class="restaurant-copy">
+                <div class="restaurant-name">
+                  <span class="restaurant-name-text" title="${escapeHTML(restaurant.name)}">${escapeHTML(restaurant.name)}</span>
+                  ${visitLabel ? `<span class="visited-status"><span class="visited-icon" data-tooltip="visited" aria-label="Visited">${LOG_ICONS.visited}</span><span class="visited-label">${escapeHTML(visitLabel)}</span></span>` : ""}
+                </div>
+                <div class="restaurant-meta"><span>${escapeHTML(restaurant.category)}</span>${restaurant.rating ? `<span class="dot"></span><span>★ ${restaurant.rating.toFixed(1)}</span>` : ""}${restaurant.address ? `<span class="dot"></span><span>Address saved</span>` : ""}</div>
               </div>
-              <div class="restaurant-meta"><span>${escapeHTML(restaurant.category)}</span>${restaurant.rating ? `<span class="dot"></span><span>★ ${restaurant.rating.toFixed(1)}</span>` : ""}${restaurant.address ? `<span class="dot"></span><span>Address saved</span>` : ""}</div>
-            </div>
-            <div class="restaurant-actions">
-              <button class="mini-action" type="button" data-map-restaurant="${escapeHTML(restaurant.id)}"
-                data-tooltip="show route" aria-label="Show the route to ${escapeHTML(restaurant.name)}">${LOG_ICONS.showOnMap}</button>
-              <a class="mini-action" href="${escapeHTML(googleMapsRestaurantUrl(restaurant))}" target="_blank" rel="noopener"
-                data-tooltip="open in Google Maps" aria-label="Open ${escapeHTML(restaurant.name)} in Google Maps">${LOG_ICONS.googleMaps}</a>
-              <button class="mini-action" type="button" data-edit-restaurant="${escapeHTML(restaurant.id)}"
-                data-tooltip="edit restaurant" aria-label="Edit ${escapeHTML(restaurant.name)}">${LOG_ICONS.edit}</button>
-              <button class="mini-action" type="button" data-pick-restaurant="${escapeHTML(restaurant.id)}"
-                data-tooltip="add to wheel" aria-label="Add ${escapeHTML(restaurant.name)} to the wheel">${LOG_ICONS.add}</button>
-            </div>
-          </article>
-        `).join("");
+              <div class="restaurant-actions">
+                <button class="mini-action" type="button" data-map-restaurant="${escapeHTML(restaurant.id)}"
+                  data-tooltip="show route" aria-label="Show the route to ${escapeHTML(restaurant.name)}">${LOG_ICONS.showOnMap}</button>
+                <a class="mini-action" href="${escapeHTML(googleMapsRestaurantUrl(restaurant))}" target="_blank" rel="noopener"
+                  data-tooltip="open in Google Maps" aria-label="Open ${escapeHTML(restaurant.name)} in Google Maps">${LOG_ICONS.googleMaps}</a>
+                <button class="mini-action" type="button" data-edit-restaurant="${escapeHTML(restaurant.id)}"
+                  data-tooltip="edit restaurant" aria-label="Edit ${escapeHTML(restaurant.name)}">${LOG_ICONS.edit}</button>
+                <button class="mini-action" type="button" data-pick-restaurant="${escapeHTML(restaurant.id)}"
+                  data-tooltip="add to wheel" aria-label="Add ${escapeHTML(restaurant.name)} to the wheel">${LOG_ICONS.add}</button>
+              </div>
+            </article>
+          `;
+        }).join("");
       }
 
       function setMapFilterMenu(open) {
@@ -3210,6 +3234,7 @@
           const ratingMarkup = googleMapsUrl
             ? `<a class="rating" href="${escapeHTML(googleMapsUrl)}" target="_blank" rel="noopener">${escapeHTML(ratingLabel)}</a>`
             : `<span class="rating">${escapeHTML(ratingLabel)}</span>`;
+          const visitLabel = restaurantVisitLabel(restaurant);
           return `
             <article class="map-restaurant-card${isActive ? " is-active" : ""}${isLoading ? " is-loading" : ""}"
               draggable="true" data-map-card data-restaurant-id="${escapeHTML(restaurant.id)}" tabindex="0"
@@ -3218,7 +3243,7 @@
               <div class="map-card-top">
                 <h3>
                   <span class="restaurant-name-text">${escapeHTML(restaurant.name)}</span>
-                  ${restaurantWasVisited(restaurant) ? `<span class="visited-icon" data-tooltip="visited" aria-label="Visited">${LOG_ICONS.visited}</span>` : ""}
+                  ${visitLabel ? `<span class="visited-status"><span class="visited-icon" data-tooltip="visited" aria-label="Visited">${LOG_ICONS.visited}</span><span class="visited-label">${escapeHTML(visitLabel)}</span></span>` : ""}
                 </h3>
               </div>
               <div class="map-card-meta"><span>${escapeHTML(restaurant.category)}</span>${ratingMarkup}</div>
