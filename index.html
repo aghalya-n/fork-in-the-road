@@ -1408,9 +1408,17 @@
       padding: 13px;
       border-radius: 18px;
     }
-    .map-experience.wheel-is-collapsed .route-map-overlay { right: 16px; left: 480px; }
+    .map-experience.wheel-is-collapsed .route-map-overlay { right: 64px; left: 432px; }
     .route-title { align-items: center; margin-bottom: 8px; }
-    .route-title .section-kicker { font-family: var(--font-heading); }
+    .route-title .section-kicker {
+      margin-left: 2px;
+      color: var(--brown);
+      font-family: var(--font-heading);
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: -.025em;
+      text-transform: none;
+    }
     .route-title strong { display: block; color: var(--brown); font-size: 14px; }
     .route-map-overlay .route-info { grid-template-columns: max-content max-content minmax(160px, 1fr); margin-top: 0; }
     .route-map-overlay .route-destination { grid-column: auto; }
@@ -1460,8 +1468,8 @@
     }
     .map-experience.wheel-is-collapsed .route-map-toolbar {
       top: 50%;
-      right: auto;
-      left: -48px;
+      right: -48px;
+      left: auto;
       flex-direction: column;
       transform: translateY(-50%);
     }
@@ -1502,7 +1510,7 @@
       .map-list-overlay { width: 380px; }
       .wheel-map-overlay { width: 370px; }
       .route-map-overlay { right: 402px; left: 412px; }
-      .map-experience.wheel-is-collapsed .route-map-overlay { left: 460px; }
+      .map-experience.wheel-is-collapsed .route-map-overlay { left: 412px; }
       .management-library .restaurant-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 980px) {
@@ -1510,7 +1518,7 @@
       .map-list-overlay { right: calc(50% + 4px); bottom: auto; width: auto; height: 590px; }
       .wheel-map-overlay { bottom: auto; left: calc(50% + 4px); width: auto; height: 820px; max-height: calc(100vh - 110px); }
       .route-map-overlay { right: 16px; bottom: 16px; left: 16px; }
-      .map-experience.wheel-is-collapsed .route-map-overlay { left: 64px; }
+      .map-experience.wheel-is-collapsed .route-map-overlay { left: 16px; }
     }
     @media (max-width: 830px) {
       .app-shell { width: min(100% - 22px, 700px); }
@@ -1526,7 +1534,7 @@
       .map-list-overlay { top: 10px; right: 10px; left: 10px; height: 445px; }
       .wheel-map-overlay { top: 465px; right: 10px; left: 10px; height: 820px; max-height: none; }
       .route-map-overlay { right: 10px; bottom: 10px; left: 10px; }
-      .map-experience.wheel-is-collapsed .route-map-overlay { right: 10px; left: 58px; }
+      .map-experience.wheel-is-collapsed .route-map-overlay { right: 58px; left: 10px; }
       .management-library .restaurant-list { grid-template-columns: 1fr; }
       .management-library .library-tools { grid-template-columns: 1fr; }
     }
@@ -1738,7 +1746,7 @@
             <div><span class="section-kicker" id="map-title">Lunch run</span></div>
             <a class="btn btn-small" id="googleDirectionsLink" href="https://www.google.com/maps/dir/?api=1&origin=2700+Via+Fortuna,+Austin,+TX+78746" target="_blank" rel="noopener">
               Google Maps
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M12.4999 2.75C12.9141 2.75006 13.2499 3.08582 13.2499 3.5V10C13.2499 10.4142 12.9141 10.7499 12.4999 10.75C12.0857 10.75 11.7499 10.4142 11.7499 10V5.31055L4.03022 13.0303C3.73734 13.3231 3.26257 13.3231 2.96967 13.0303C2.67678 12.7374 2.67678 12.2626 2.96967 11.9697L10.6894 4.25H5.99994C5.58573 4.25 5.24994 3.91421 5.24994 3.5C5.24994 3.08579 5.58573 2.75 5.99994 2.75H12.4999Z" fill="#262629"/>
               </svg>
             </a>
