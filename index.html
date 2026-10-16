@@ -2071,13 +2071,14 @@
   <dialog id="syncDialog">
     <form id="syncForm">
       <div class="modal-head">
-        <div><h2>Connect shared data</h2><p>We're using a Google Sheet as the club’s shared database.</p></div>
+        <div><h2>Connect shared data</h2><p>Use a free Google Sheet as the club’s shared database.</p></div>
         <button class="close-btn" type="button" data-close-dialog aria-label="Close">×</button>
       </div>
       <div class="modal-body">
         <ol class="setup-steps">
-          <p><strong>Add the following link below to retrieve shared history.</strong></p>
-          <p>https://tinyurl.com/fitrHistory</p>
+          <li>Create a Google Sheet and install the supplied <strong>Code.gs</strong> Apps Script.</li>
+          <li>Deploy it as a web app with access set to <strong>Anyone</strong>.</li>
+          <li>Paste the deployment URL ending in <strong>/exec</strong> below.</li>
         </ol>
         <div class="field">
           <label for="backendUrl">Apps Script web app URL</label>
@@ -2111,6 +2112,7 @@
       const STORAGE_KEY = "austinLunchClub.v1";
       const BACKEND_KEY = "austinLunchClub.backend.v1";
       const ROUTE_CACHE_KEY = "austinLunchClub.routes.v1";
+      const DEFAULT_BACKEND_URL = "https://script.google.com/macros/s/AKfycbwL8mZuKtcyoAD_UFIlWj9qZPgbsUR_YUWQWS10s_RVKTYHVjDeFHGNqz6HcgNRRals/exec";
       const OFFICE = {
         name: "Arista Networks Austin",
         address: "2700 Via Fortuna, Building II, Suite 420, Austin, TX 78746",
@@ -2488,9 +2490,9 @@
 
       function loadBackendUrl() {
         try {
-          return localStorage.getItem(BACKEND_KEY) || "";
+          return localStorage.getItem(BACKEND_KEY) || DEFAULT_BACKEND_URL;
         } catch (error) {
-          return "";
+          return DEFAULT_BACKEND_URL;
         }
       }
 
@@ -3068,12 +3070,12 @@
         if (context !== "log") addReadyWheelPick();
       }
 
-      function restaurantVisitLabel(restaurant) {
+      function restaurantVisitInfo(restaurant) {
         const visits = state.logs.filter(log =>
           (log.restaurantId && log.restaurantId === restaurant.id)
           || normalize(log.restaurantName) === normalize(restaurant.name)
         );
-        if (!visits.length) return "";
+        if (!visits.length) return null;
         const latestVisit = visits.reduce((latest, log) => {
           const date = parseLocalDate(log.date);
           const createdAt = new Date(Number(log.createdAt) || 0);
@@ -3084,12 +3086,21 @@
               : Date.UTC(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate());
           return timestamp > latest ? timestamp : latest;
         }, 0);
-        if (!latestVisit) return "visited";
+        if (!latestVisit) return { ageLabel: "visited", tooltipLabel: "visited" };
         const today = new Date();
         const todayTimestamp = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
         const daysAgo = Math.max(0, Math.round((todayTimestamp - latestVisit) / 86400000));
-        if (daysAgo === 0) return "today";
-        return daysAgo === 1 ? "1 day ago" : `${daysAgo} days ago`;
+        const ageLabel = daysAgo === 0 ? "today" : daysAgo === 1 ? "1 day ago" : `${daysAgo} days ago`;
+        const dateLabel = new Intl.DateTimeFormat(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          timeZone: "UTC"
+        }).format(new Date(latestVisit));
+        return {
+          ageLabel,
+          tooltipLabel: `visited • ${dateLabel}`
+        };
       }
 
       function renderRestaurantList() {
@@ -3103,13 +3114,13 @@
           return;
         }
         els.restaurantList.innerHTML = matches.map(restaurant => {
-          const visitLabel = restaurantVisitLabel(restaurant);
+          const visitInfo = restaurantVisitInfo(restaurant);
           return `
             <article class="restaurant-item">
               <div class="restaurant-copy">
                 <div class="restaurant-name">
                   <span class="restaurant-name-text" title="${escapeHTML(restaurant.name)}">${escapeHTML(restaurant.name)}</span>
-                  ${visitLabel ? `<span class="visited-status"><span class="visited-icon" data-tooltip="visited" aria-label="Visited">${LOG_ICONS.visited}</span><span class="visited-label">${escapeHTML(visitLabel)}</span></span>` : ""}
+                  ${visitInfo ? `<span class="visited-status"><span class="visited-icon" data-tooltip="${escapeHTML(visitInfo.tooltipLabel)}" aria-label="${escapeHTML(visitInfo.tooltipLabel)}">${LOG_ICONS.visited}</span><span class="visited-label">${escapeHTML(visitInfo.ageLabel)}</span></span>` : ""}
                 </div>
                 <div class="restaurant-meta"><span>${escapeHTML(restaurant.category)}</span>${restaurant.rating ? `<span class="dot"></span><span>★ ${restaurant.rating.toFixed(1)}</span>` : ""}${restaurant.address ? `<span class="dot"></span><span>Address saved</span>` : ""}</div>
               </div>
@@ -3233,7 +3244,7 @@
           const ratingMarkup = googleMapsUrl
             ? `<a class="rating" href="${escapeHTML(googleMapsUrl)}" target="_blank" rel="noopener">${escapeHTML(ratingLabel)}</a>`
             : `<span class="rating">${escapeHTML(ratingLabel)}</span>`;
-          const visitLabel = restaurantVisitLabel(restaurant);
+          const visitInfo = restaurantVisitInfo(restaurant);
           return `
             <article class="map-restaurant-card${isActive ? " is-active" : ""}${isLoading ? " is-loading" : ""}"
               draggable="true" data-map-card data-restaurant-id="${escapeHTML(restaurant.id)}" tabindex="0"
@@ -3242,7 +3253,7 @@
               <div class="map-card-top">
                 <h3>
                   <span class="restaurant-name-text">${escapeHTML(restaurant.name)}</span>
-                  ${visitLabel ? `<span class="visited-status"><span class="visited-icon" data-tooltip="visited" aria-label="Visited">${LOG_ICONS.visited}</span><span class="visited-label">${escapeHTML(visitLabel)}</span></span>` : ""}
+                  ${visitInfo ? `<span class="visited-status"><span class="visited-icon" data-tooltip="${escapeHTML(visitInfo.tooltipLabel)}" aria-label="${escapeHTML(visitInfo.tooltipLabel)}">${LOG_ICONS.visited}</span><span class="visited-label">${escapeHTML(visitInfo.ageLabel)}</span></span>` : ""}
                 </h3>
               </div>
               <div class="map-card-meta"><span>${escapeHTML(restaurant.category)}</span>${ratingMarkup}</div>
