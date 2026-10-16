@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#3b2a24">
-  <title>Austin Lunch Club</title>
+  <title>Fork in the Road</title>
   <meta name="description" content="Pick a Friday lunch spot, spin the wheel, map the drive, and keep score.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIINfQ3ynFec36m4BQFh6TqafM9Dny7CwtI=" crossorigin="">
   <style>
@@ -25,6 +25,8 @@
       --muted: #756c65;
       --line: #e7ddd3;
       --danger: #a8463b;
+      --font-body: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-heading: "Nunito", "Outfit", sans-serif;
       --shadow: 0 18px 45px rgba(59, 42, 36, .09);
       --radius-xl: 28px;
       --radius-lg: 20px;
@@ -33,6 +35,92 @@
 
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
+    /* Critical Leaflet layout is inlined so routes still render when an embed blocks CDN styles. */
+    .leaflet-pane,
+    .leaflet-tile,
+    .leaflet-marker-icon,
+    .leaflet-marker-shadow,
+    .leaflet-tile-container,
+    .leaflet-pane > svg,
+    .leaflet-pane > canvas,
+    .leaflet-zoom-box,
+    .leaflet-image-layer,
+    .leaflet-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    .leaflet-container { overflow: hidden; outline-offset: 1px; font-family: var(--font-body); }
+    .leaflet-tile,
+    .leaflet-marker-icon,
+    .leaflet-marker-shadow {
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .leaflet-marker-icon,
+    .leaflet-marker-shadow { display: block; }
+    .leaflet-container .leaflet-overlay-pane svg,
+    .leaflet-container .leaflet-marker-pane img,
+    .leaflet-container .leaflet-shadow-pane img,
+    .leaflet-container .leaflet-tile-pane img,
+    .leaflet-container img.leaflet-image-layer,
+    .leaflet-container .leaflet-tile {
+      max-width: none !important;
+      max-height: none !important;
+    }
+    .leaflet-pane { z-index: 400; }
+    .leaflet-tile-pane {
+      z-index: 200;
+      opacity: 1;
+      filter: none;
+    }
+    .leaflet-overlay-pane { z-index: 400; }
+    .leaflet-shadow-pane { z-index: 500; }
+    .leaflet-marker-pane { z-index: 600; }
+    .leaflet-tooltip-pane { z-index: 650; }
+    .leaflet-popup-pane { z-index: 700; }
+    .leaflet-map-pane canvas { z-index: 100; }
+    .leaflet-map-pane svg { z-index: 200; }
+    .leaflet-control {
+      position: relative;
+      z-index: 800;
+      pointer-events: auto;
+    }
+    .leaflet-top,
+    .leaflet-bottom {
+      position: absolute;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .leaflet-top { top: 0; }
+    .leaflet-right { right: 0; }
+    .leaflet-bottom { bottom: 0; }
+    .leaflet-left { left: 0; }
+    .leaflet-control { float: left; clear: both; }
+    .leaflet-right .leaflet-control { float: right; }
+    .leaflet-top .leaflet-control { margin-top: 10px; }
+    .leaflet-bottom .leaflet-control { margin-bottom: 10px; }
+    .leaflet-left .leaflet-control { margin-left: 10px; }
+    .leaflet-right .leaflet-control { margin-right: 10px; }
+    .leaflet-control-zoom a {
+      display: block;
+      width: 30px;
+      height: 30px;
+      color: var(--brown);
+      background: var(--white);
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      text-decoration: none;
+      font: 700 20px/30px var(--font-body);
+    }
+    .leaflet-control-zoom { overflow: hidden; border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 4px 12px rgba(59, 42, 36, .16); }
+    .leaflet-control-attribution { padding: 2px 5px; color: var(--muted); background: rgba(255, 254, 250, .8); font-size: 9px; }
+    .leaflet-control-attribution a { color: var(--brown); }
+    .leaflet-tooltip,
+    .leaflet-popup {
+      position: absolute;
+      pointer-events: none;
+    }
     body {
       margin: 0;
       min-width: 320px;
@@ -41,7 +129,7 @@
         radial-gradient(circle at 8% 4%, rgba(216, 200, 238, .4), transparent 25rem),
         radial-gradient(circle at 94% 26%, rgba(201, 223, 183, .38), transparent 27rem),
         var(--cream);
-      font-family: "Nunito", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: var(--font-body);
     }
 
     button, input, select, textarea { font: inherit; }
@@ -62,8 +150,14 @@
       border-bottom: 1px solid rgba(231, 221, 211, .85);
       backdrop-filter: blur(18px);
     }
-    .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .site-header .header-inner {
+      display: flex;
+      width: calc(100% - 40px);
+      max-width: none;
+      align-items: center;
+      gap: 0;
+    }
+    .header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
     .brand { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
     .brand-mark {
       display: grid;
@@ -76,20 +170,24 @@
       box-shadow: 0 7px 18px rgba(59, 42, 36, .17);
       transform: rotate(-3deg);
     }
-    .brand-mark svg { width: 27px; height: 27px; }
+    .brand-mark svg { width: 30px; height: 24px; }
     .brand-copy { line-height: 1.05; }
     .brand-copy strong { display: block; font-size: 18px; font-weight: 900; letter-spacing: -.02em; }
     .brand-copy span { color: var(--muted); font-size: 12px; font-weight: 700; }
-    .nav { display: flex; align-items: center; gap: 6px; }
-    .nav a {
+    .nav { display: flex; align-items: center; gap: 6px; margin-left: 32px; }
+    .nav button {
       padding: 9px 13px;
       color: var(--muted);
+      background: transparent;
+      border: 0;
       border-radius: 999px;
+      font-family: var(--font-heading);
       font-size: 14px;
       font-weight: 800;
       text-decoration: none;
+      transition: color .18s ease, background-color .18s ease;
     }
-    .nav a:hover { color: var(--brown); background: var(--white); }
+    .nav button:hover { color: var(--brown); background: rgba(216, 200, 238, .25); }
 
     .hero {
       display: grid;
@@ -169,10 +267,10 @@
       gap: 14px;
       margin-bottom: 18px;
     }
-    .section-head h2, .section-head h3 { margin-bottom: 3px; color: var(--brown); font-weight: 900; letter-spacing: -.025em; }
-    .section-head h2 { font-size: 24px; }
+    .section-head h2, .section-head h3, .tab-page-heading h2 { margin-bottom: 3px; color: var(--brown); font-weight: 900; letter-spacing: -.025em; }
+    .section-head h2, .tab-page-heading h2 { font-size: 24px; }
     .section-head h3 { font-size: 20px; }
-    .section-head p { margin-bottom: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .section-head p, .tab-page-heading p { margin-bottom: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
     .section-kicker {
       display: block;
       margin-bottom: 4px;
@@ -206,6 +304,15 @@
     .btn-small { min-height: 34px; padding: 7px 11px; font-size: 12px; }
     .btn-icon { width: 38px; min-height: 38px; padding: 0; border-radius: 12px; }
     .btn:disabled { cursor: not-allowed; opacity: .48; transform: none; box-shadow: none; }
+    .header-actions .btn-green,
+    .compact-add-btn {
+      min-height: 34px;
+      gap: 7px;
+      padding: 7px 11px;
+      font-size: 11px;
+    }
+    .header-actions .btn-green { background: transparent; border-color: #b7d29f; }
+    .header-actions .btn-green:hover { background: rgba(201, 223, 183, .6); }
     .sync-status {
       display: inline-flex;
       min-height: 34px;
@@ -244,7 +351,7 @@
     }
 
     .field { display: grid; gap: 6px; }
-    .field label { color: var(--brown); font-size: 12px; font-weight: 900; }
+    .field label { color: var(--brown); font-family: var(--font-heading); font-size: 12px; font-weight: 900; }
     .input, .select, .textarea {
       width: 100%;
       min-height: 44px;
@@ -284,23 +391,28 @@
       border-radius: 15px;
     }
     .restaurant-item:hover { background: var(--white); border-color: var(--line); }
-    .restaurant-name { overflow: hidden; color: var(--brown); font-size: 14px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+    .restaurant-name { display: flex; min-width: 0; align-items: center; gap: 5px; color: var(--brown); font-family: var(--font-heading); font-size: 14px; font-weight: 900; }
+    .restaurant-name-text { overflow: hidden; min-width: 0; text-overflow: ellipsis; white-space: nowrap; }
+    .visited-icon { display: inline-grid; width: 16px; height: 16px; flex: 0 0 16px; place-items: center; color: var(--brown); }
+    .visited-icon svg { display: block; width: 16px; height: 16px; }
     .restaurant-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; color: var(--muted); font-size: 11px; }
     .dot { width: 4px; height: 4px; background: var(--purple); border-radius: 50%; }
     .restaurant-actions { display: flex; gap: 4px; }
     .mini-action {
+      position: relative;
       display: grid;
       width: 31px;
       height: 31px;
       place-items: center;
-      color: var(--brown);
-      background: var(--white);
-      border: 1px solid var(--line);
+      color: #76579a;
+      background: transparent;
+      border: 0;
       border-radius: 10px;
       font-size: 14px;
       font-weight: 900;
     }
-    .mini-action:hover { background: var(--purple-2); }
+    .mini-action svg { display: block; width: 16px; height: 16px; }
+    .mini-action:hover { background: rgba(201, 223, 183, .3); }
     .empty-state {
       padding: 30px 18px;
       color: var(--muted);
@@ -438,17 +550,20 @@
     }
     .route-stat span { display: block; color: var(--muted); font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
     .route-stat strong { display: block; margin-top: 2px; color: var(--brown); font-size: 18px; font-weight: 900; }
+    .route-stat strong.is-placeholder { color: rgba(117, 108, 101, .58); font-weight: 400; }
     .route-destination { grid-column: 1 / -1; }
     .route-destination strong { font-size: 14px; }
     .route-note { min-height: 36px; margin: 11px 2px 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
     .map-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .leaflet-popup-content-wrapper, .leaflet-popup-tip { color: var(--ink); background: var(--white); }
-    .leaflet-popup-content { font-family: "Nunito", sans-serif; }
+    .leaflet-popup-content { font-family: var(--font-body); }
 
     .records-section { padding: 52px 0 24px; scroll-margin-top: 76px; }
+    .records-section > .section-head { align-items: flex-end; }
     .records-grid { display: grid; grid-template-columns: .95fr 1.05fr; gap: 18px; }
     .leader-card, .history-card { padding: 22px; }
-    .leader-list, .history-list { display: grid; gap: 9px; }
+    .leader-list { display: grid; gap: 9px; }
+    .history-list { display: grid; gap: 0; padding-top: 5px; }
     .leader-row {
       display: grid;
       grid-template-columns: 38px 1fr auto;
@@ -471,57 +586,134 @@
     }
     .leader-row:first-child .rank { background: var(--green); }
     .leader-name { min-width: 0; }
-    .leader-name strong { display: block; overflow: hidden; color: var(--brown); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+    .leader-name strong { display: block; overflow: hidden; color: var(--brown); font-family: var(--font-heading); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
     .leader-name span { color: var(--muted); font-size: 11px; }
     .win-count { color: var(--brown); font-size: 20px; font-weight: 900; }
-    .history-row {
+    .history-event {
       display: grid;
-      grid-template-columns: 48px 1fr auto;
+      grid-template-columns: 16px minmax(0, 1fr);
+      gap: 9px;
+      align-items: stretch;
+    }
+    .history-rail {
+      position: relative;
+      display: flex;
+      justify-content: center;
+    }
+    .history-dot {
+      position: relative;
+      z-index: 2;
+      width: 8px;
+      height: 8px;
+      margin-top: 7px;
+      background: #a98ac8;
+      border-radius: 50%;
+    }
+    .history-event:first-child .history-dot {
+      width: 12px;
+      height: 12px;
+      margin-top: 5px;
+      background: var(--green);
+      border: 3px solid var(--white);
+      box-shadow: inset 0 0 0 1px #91b577, 0 0 0 2px #a98ac8;
+    }
+    .history-line {
+      position: absolute;
+      z-index: 1;
+      top: 17px;
+      bottom: -5px;
+      width: 2px;
+      background: #c9b5e4;
+    }
+    .history-event:last-child .history-line { display: none; }
+    .history-content { min-width: 0; padding: 0 0 25px; }
+    .history-event:last-child .history-content { padding-bottom: 0; }
+    .history-event-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
       gap: 12px;
-      align-items: center;
-      padding: 11px 8px 11px 11px;
-      border-bottom: 1px solid var(--line);
     }
-    .history-row:last-child { border-bottom: 0; }
-    .date-tile {
-      display: grid;
-      width: 48px;
-      height: 48px;
-      align-content: center;
+    .history-title { min-width: 0; }
+    .history-title strong {
+      display: block;
+      overflow: hidden;
       color: var(--brown);
-      background: var(--green-2);
-      border-radius: 13px;
-      text-align: center;
-      line-height: 1;
+      font-family: var(--font-heading);
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1.45;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
-    .date-tile strong { font-size: 18px; font-weight: 900; }
-    .date-tile span { margin-top: 3px; font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
-    .history-info { min-width: 0; }
-    .history-info strong { display: block; overflow: hidden; color: var(--brown); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-    .history-info span { color: var(--muted); font-size: 11px; }
-    .delete-log {
+    .history-title time { display: block; color: var(--muted); font-size: 12px; font-weight: 700; line-height: 1.55; }
+    .history-actions { display: flex; flex: 0 0 auto; gap: 4px; }
+    .history-action {
+      position: relative;
       display: grid;
-      width: 32px;
-      height: 32px;
+      width: 31px;
+      height: 31px;
       padding: 0;
       place-items: center;
-      color: var(--muted);
+      color: #76579a;
       background: transparent;
       border: 0;
-      border-radius: 9px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 900;
     }
-    .delete-log:hover { color: var(--danger); background: #f9e8e5; }
+    .history-action svg, .history-detail-icon svg { display: block; width: 16px; height: 16px; }
+    .history-action:hover { color: #76579a; background: rgba(201, 223, 183, .3); }
+    .history-details { display: grid; gap: 4px; margin-top: 6px; }
+    .history-detail {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 7px;
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .history-detail-icon {
+      display: inline-grid;
+      width: 16px;
+      height: 16px;
+      flex: 0 0 16px;
+      place-items: center;
+      color: #76579a;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .history-stars { display: inline-flex; gap: 1px; font-size: 13px; }
+    .history-star {
+      color: transparent;
+      background: linear-gradient(90deg, #76579a 0 var(--star-fill), #d8ccc3 var(--star-fill) 100%);
+      background-clip: text;
+      -webkit-background-clip: text;
+    }
+    .history-rating { gap: 8px; }
+    .history-rating-label, .history-winning-label { color: var(--muted); font-size: 10px; font-weight: 600; }
+    .history-winning-name { color: var(--ink); font-size: 12px; font-weight: 400; }
+    .history-note {
+      align-items: flex-start;
+      margin-top: 2px;
+      padding: 0;
+      background: transparent;
+    }
 
     .site-footer {
       display: flex;
+      width: calc(100% - 40px);
+      max-width: none;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      padding: 22px 0 36px;
+      padding: 22px 0;
       color: var(--muted);
       font-size: 12px;
     }
     .footer-actions { display: flex; gap: 8px; }
+    .footer-actions .btn { background: var(--purple); border-color: #c9b5e4; }
 
     dialog {
       width: min(520px, calc(100% - 30px));
@@ -533,6 +725,7 @@
       box-shadow: 0 30px 80px rgba(59, 42, 36, .25);
     }
     dialog::backdrop { background: rgba(35, 24, 20, .52); backdrop-filter: blur(5px); }
+    #restaurantDialog, #logDialog { overflow: visible; }
     .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 22px 13px; }
     .modal-head h2 { margin-bottom: 2px; color: var(--brown); font-size: 24px; font-weight: 900; }
     .modal-head p { margin-bottom: 0; color: var(--muted); font-size: 12px; }
@@ -553,6 +746,244 @@
     .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 4px; }
     .modal-actions .danger { margin-right: auto; color: var(--danger); }
+    .star-rating-control {
+      display: flex;
+      min-height: 44px;
+      align-items: center;
+      gap: 3px;
+      padding: 7px 10px;
+      background: var(--cream);
+      border: 1px solid var(--line);
+      border-radius: 13px;
+    }
+    .star-rating-button {
+      position: relative;
+      display: grid;
+      width: 31px;
+      height: 31px;
+      padding: 0;
+      place-items: center;
+      color: transparent;
+      background: transparent;
+      border: 0;
+      border-radius: 8px;
+      font-size: 0;
+      line-height: 1;
+      transition: color .12s ease, background .12s ease, transform .12s ease;
+    }
+    .star-rating-button::before,
+    .star-rating-button::after {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      content: "★";
+      place-items: center;
+      font-size: 23px;
+    }
+    .star-rating-button::before { color: #c7b9ad; }
+    .star-rating-button::after {
+      color: #76579a;
+      clip-path: inset(0 calc(100% - var(--star-fill, 0%)) 0 0);
+    }
+    .star-rating-button.is-previewing::after { color: rgba(118, 87, 154, .6); }
+    .star-rating-button:hover { transform: translateY(-1px); }
+    .star-rating-status { margin-left: 7px; color: var(--muted); font-size: 11px; font-weight: 800; }
+    .clear-rating {
+      margin-left: auto;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      font-size: 10px;
+      font-weight: 900;
+      text-decoration: underline;
+      text-decoration-color: var(--purple);
+      text-underline-offset: 3px;
+    }
+    .restaurant-combobox { position: relative; }
+    .combo-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+    }
+    .combo-trigger.is-placeholder { color: rgba(117, 108, 101, .62); }
+    .combo-trigger span:first-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .combo-trigger > svg {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 16px;
+      transition: transform .15s ease;
+    }
+    .combo-trigger[aria-expanded="true"] > svg { transform: rotate(180deg); }
+    .combo-trigger[aria-expanded="true"] {
+      border-color: #a98ac8;
+      box-shadow: 0 0 0 4px rgba(216, 200, 238, .4);
+    }
+    .combo-menu {
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 8px);
+      right: -4px;
+      left: -4px;
+      overflow: hidden;
+      background: var(--white);
+      border: 1px solid #cdbbdc;
+      border-radius: 16px;
+      box-shadow: 0 18px 45px rgba(59, 42, 36, .2);
+    }
+    .combo-search-wrap {
+      position: sticky;
+      z-index: 2;
+      top: 0;
+      padding: 10px;
+      background: var(--white);
+      border-bottom: 1px solid var(--line);
+    }
+    .combo-options {
+      display: grid;
+      gap: 4px;
+      max-height: 230px;
+      padding: 5px;
+      overflow-y: auto;
+      scrollbar-color: var(--purple) transparent;
+    }
+    .combo-option {
+      display: grid;
+      width: 100%;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 7px 10px;
+      color: var(--brown);
+      background: transparent;
+      border: 0;
+      border-radius: 10px;
+      text-align: left;
+    }
+    .combo-option:hover { background: rgba(201, 223, 183, .4); }
+    .combo-option[aria-selected="true"],
+    .combo-option[aria-selected="true"]:hover { background: rgba(201, 223, 183, .6); }
+    .combo-option strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+    .combo-option small { color: var(--muted); font-size: 10px; }
+    .option-check {
+      display: grid;
+      width: 16px;
+      height: 16px;
+      margin-left: auto;
+      place-items: center;
+    }
+    .option-check svg { display: block; width: 16px; height: 16px; }
+    .combo-no-results { padding: 22px 12px; color: var(--muted); font-size: 12px; text-align: center; }
+    .combo-footer {
+      position: sticky;
+      z-index: 2;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px;
+      color: var(--muted);
+      background: var(--green-2);
+      border-top: 1px solid #d4e4c7;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .date-picker { position: relative; }
+    .date-menu {
+      position: absolute;
+      z-index: 30;
+      top: calc(100% + 8px);
+      left: -4px;
+      width: min(290px, calc(100vw - 60px));
+      padding: 10px;
+      color: var(--brown);
+      background: var(--white);
+      border: 1px solid #cdbbdc;
+      border-radius: 16px;
+      box-shadow: 0 18px 45px rgba(59, 42, 36, .2);
+    }
+    .date-calendar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 2px 3px 9px;
+    }
+    .date-calendar-head strong { font-size: 15px; font-weight: 900; }
+    .date-calendar-nav { display: flex; gap: 4px; }
+    .date-calendar-nav button {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      place-items: center;
+      color: var(--brown);
+      background: var(--purple-2);
+      border: 0;
+      border-radius: 9px;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .date-calendar-nav button:hover { background: rgba(201, 223, 183, .4); }
+    .date-weekdays, .date-days {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 3px;
+    }
+    .date-weekdays {
+      padding: 0 0 5px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      font-size: 10px;
+      font-weight: 900;
+      text-align: center;
+    }
+    .date-days { padding-top: 5px; }
+    .date-day, .date-day-placeholder {
+      display: grid;
+      min-width: 0;
+      height: 32px;
+      padding: 0;
+      place-items: center;
+      border: 0;
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .date-day { color: var(--brown); background: transparent; }
+    .date-day:hover { background: rgba(201, 223, 183, .4); }
+    .date-day[aria-selected="true"],
+    .date-day[aria-selected="true"]:hover { background: rgba(201, 223, 183, .6); }
+    .date-day.is-today { box-shadow: inset 0 0 0 2px var(--purple); }
+    .date-day-placeholder { pointer-events: none; }
+    .wheel-restaurant-combobox .combo-menu {
+      right: 0;
+      left: auto;
+      width: min(310px, calc(100vw - 40px));
+    }
+    .teammate-combobox .combo-menu {
+      right: auto;
+      left: -4px;
+      width: min(270px, calc(100vw - 40px));
+    }
+    .teammate-add-footer { display: block; }
+    .teammate-add-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 7px;
+      align-items: center;
+    }
+    .teammate-add-form .input { min-height: 36px; padding: 7px 9px; font-size: 12px; }
+    .teammate-add-form .link-btn { grid-column: 1 / -1; justify-self: start; font-size: 10px; }
+    .category-menu .combo-options { max-height: 280px; }
     .setup-steps {
       margin: 0;
       padding: 14px 14px 14px 32px;
@@ -568,14 +999,17 @@
 
     .toast {
       position: fixed;
-      z-index: 2000;
+      z-index: 2147483647;
+      top: auto;
       right: 20px;
       bottom: 20px;
+      left: auto;
       max-width: min(390px, calc(100% - 40px));
+      margin: 0;
       padding: 13px 16px;
-      color: var(--white);
-      background: var(--brown);
-      border: 1px solid rgba(255, 255, 255, .12);
+      color: var(--brown);
+      background: var(--purple);
+      border: 1px solid #c9b5e4;
       border-radius: 14px;
       box-shadow: 0 16px 40px rgba(59, 42, 36, .25);
       font-size: 13px;
@@ -599,7 +1033,8 @@
     }
 
     [hidden] { display: none !important; }
-    .nav a[aria-current="page"] { color: var(--brown); background: var(--white); box-shadow: 0 4px 12px rgba(59, 42, 36, .06); }
+    .nav button[aria-current="page"],
+    .nav button[aria-current="page"]:hover { color: var(--brown); background: rgba(216, 200, 238, .6); box-shadow: none; }
     .tab-panel { min-height: calc(100vh - 75px); }
     .page-panel { padding: 48px 0; }
     .page-hero {
@@ -611,6 +1046,11 @@
     }
     .page-hero h1 { margin-bottom: 10px; }
     .page-hero > div > p:last-child { max-width: 680px; margin-bottom: 0; color: var(--muted); font-size: 17px; }
+    .page-hero > .tab-page-heading > p:last-child { font-size: 13px; line-height: 1.45; }
+    #restaurants-tab .tab-page-heading h2 { font-size: 36px; }
+    #records-tab > .section-head h2 { font-size: 36px; }
+    #restaurants-tab .page-hero > div:first-child,
+    #records-tab > .section-head > div:first-child { margin-left: 4px; }
     .management-library { padding: 24px; }
     .management-library .library-tools { grid-template-columns: minmax(260px, 1fr) minmax(190px, .32fr); }
     .management-library .category-filter { margin-bottom: 0; }
@@ -624,7 +1064,7 @@
       position: relative;
       min-height: calc(100vh - 75px);
       overflow: hidden;
-      background: #dfe9d9;
+      background: #e8e4dc;
       border-top: 1px solid var(--line);
     }
     .map-experience #map {
@@ -633,14 +1073,14 @@
       width: 100%;
       height: 100%;
       min-height: 0;
-      background: var(--green-2);
+      background: #e8e4dc;
     }
     .map-experience .map-fallback {
       position: absolute;
       z-index: 650;
       inset: 0;
       min-height: 0;
-      background: var(--green-2);
+      background: #e8e4dc;
     }
     .map-list-overlay,
     .wheel-map-overlay,
@@ -657,9 +1097,9 @@
       bottom: 16px;
       left: 16px;
       display: flex;
-      width: 340px;
+      width: 400px;
       flex-direction: column;
-      padding: 18px 13px 13px;
+      padding: 18px 5px 13px 13px;
       border-radius: 21px;
     }
     .map-overlay-head, .wheel-overlay-head, .route-title {
@@ -668,19 +1108,100 @@
       justify-content: space-between;
       gap: 12px;
     }
-    .map-overlay-head { padding: 0 5px; }
+    .map-overlay-head { align-items: center; flex-wrap: nowrap; column-gap: 8px; margin-bottom: 11px; padding: 0 5px; }
+    .map-overlay-head .btn-icon svg { width: 16px; height: 16px; color: var(--brown); }
+    .map-heading-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; margin-right: 8px; margin-left: auto; }
+    .map-heading-action { position: relative; }
+    .map-filter-control { position: relative; }
+    .map-filter-control.is-filtered > .map-heading-action { background: var(--purple); border-color: #c9b5e4; }
+    .map-filter-menu {
+      position: absolute;
+      z-index: 35;
+      top: calc(100% + 8px);
+      right: 0;
+      display: grid;
+      width: 250px;
+      gap: 12px;
+      padding: 12px;
+      background: var(--white);
+      border: 1px solid #cdbbdc;
+      border-radius: 16px;
+      box-shadow: 0 18px 42px rgba(59, 42, 36, .2);
+    }
+    .map-filter-group { display: grid; gap: 6px; }
+    .map-filter-label { color: var(--muted); font-family: var(--font-heading); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+    .map-filter-options { display: grid; gap: 4px; }
+    .map-filter-option {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+      padding: 7px 9px;
+      color: var(--brown);
+      background: transparent;
+      border: 0;
+      border-radius: 9px;
+      font-size: 11px;
+      text-align: left;
+    }
+    .map-filter-option:hover { background: rgba(201, 223, 183, .4); }
+    .map-filter-option[aria-pressed="true"] { background: rgba(201, 223, 183, .6); }
+    .map-cuisine-options { max-height: 178px; overflow-y: auto; scrollbar-color: var(--purple) transparent; }
+    .map-filter-clear { justify-self: start; font-size: 11px; }
+    .map-heading-action::after,
+    .mini-action::after,
+    .history-action::after,
+    .route-map-toolbar button::after {
+      position: absolute;
+      z-index: 20;
+      right: auto;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, 3px);
+      transition: opacity .15s ease, transform .15s ease;
+    }
+    .map-heading-action::after,
+    .mini-action::after,
+    .history-action::after,
+    .route-map-toolbar button::after {
+      padding: 6px 9px;
+      content: attr(data-tooltip);
+      color: var(--brown);
+      background: var(--purple);
+      border-radius: 8px;
+      box-shadow: 0 7px 18px rgba(59, 42, 36, .16);
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .map-heading-action:hover::after,
+    .map-heading-action:focus-visible::after,
+    .mini-action:hover::after,
+    .mini-action:focus-visible::after,
+    .history-action:hover::after,
+    .history-action:focus-visible::after,
+    .route-map-toolbar button:hover::after,
+    .route-map-toolbar button:focus-visible::after {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
     .map-overlay-head h1 {
-      margin-bottom: 11px;
+      margin-bottom: 0;
       font-size: 31px;
       letter-spacing: -.04em;
+      white-space: nowrap;
     }
-    .map-search { flex: 0 0 auto; }
+    .map-search { width: calc(100% - 8px); flex: 0 0 auto; font-size: 15px; }
     .map-list-help { margin: 8px 4px 10px; color: var(--muted); font-size: 10px; line-height: 1.4; }
     .map-restaurant-list {
       display: grid;
       min-height: 0;
       gap: 8px;
-      padding-right: 3px;
+      padding: 4px 9px 3px 3px;
       overflow-y: auto;
       scrollbar-color: var(--purple) transparent;
     }
@@ -703,22 +1224,23 @@
     }
     .map-restaurant-card.is-active { border-color: #76579a; box-shadow: 0 0 0 3px rgba(216, 200, 238, .55); }
     .map-restaurant-card.is-loading { opacity: .68; }
-    .map-card-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; align-items: start; }
-    .map-card-top h3 { margin: 0; overflow: hidden; color: var(--brown); font-size: 15px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
-    .map-add-btn {
-      display: grid;
-      width: 31px;
-      height: 31px;
-      padding: 0;
-      place-items: center;
-      color: var(--white);
-      background: var(--brown);
-      border: 0;
-      border-radius: 10px;
-      font-size: 18px;
-      font-weight: 900;
+    .map-card-tooltip {
+      position: fixed;
+      z-index: 2200;
+      padding: 6px 9px;
+      pointer-events: none;
+      color: var(--brown);
+      background: var(--purple);
+      border-radius: 8px;
+      box-shadow: 0 7px 18px rgba(59, 42, 36, .16);
+      font-size: 11px;
+      font-weight: 700;
       line-height: 1;
+      transform: translate(0, -50%);
+      white-space: nowrap;
     }
+    .map-card-top { min-width: 0; }
+    .map-card-top h3 { display: flex; min-width: 0; align-items: center; gap: 5px; margin: 0; color: var(--brown); font-size: 15px; font-weight: 900; }
     .map-card-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; color: var(--muted); font-size: 11px; font-weight: 700; }
     .map-card-meta .rating { color: #765d14; }
     .map-card-meta a.rating { text-decoration: none; }
@@ -734,42 +1256,107 @@
       font-size: 10px;
       font-weight: 800;
     }
+    .map-card-route.is-placeholder {
+      font-weight: 400;
+      line-height: 1.4;
+    }
     .map-card-route strong { color: var(--brown); font-size: 12px; }
 
     .wheel-map-overlay {
       top: 16px;
       right: 16px;
       bottom: 16px;
+      display: flex;
       width: 425px;
-      padding: 18px;
+      padding: 18px 18px 8px;
+      flex-direction: column;
       overflow-y: auto;
       border-radius: 22px;
       transition: opacity .2s ease, transform .2s ease;
     }
-    .wheel-overlay-head h2 { margin-bottom: 9px; color: var(--brown); font-size: 23px; font-weight: 900; }
-    .wheel-date { width: 138px; margin: -44px 43px 9px auto; }
-    .wheel-date .input { min-height: 35px; padding: 6px 8px; font-size: 11px; }
-    .minimize-btn {
-      display: grid;
-      width: 34px;
-      height: 30px;
-      padding: 0 0 7px;
-      place-items: center;
-      color: var(--brown);
-      background: var(--white);
-      border: 2px solid var(--brown);
-      border-radius: 8px;
-      font-size: 24px;
+    .wheel-overlay-head { align-items: center; margin-bottom: 10px; }
+    .wheel-overlay-head h2 { margin-bottom: 0; color: var(--brown); font-size: 23px; font-weight: 900; }
+    .wheel-heading { display: flex; align-items: center; gap: 9px; }
+    .wheel-heading-dot { color: var(--muted); font-size: 13px; font-weight: 900; }
+    .wheel-date-static {
+      color: var(--muted);
+      font-size: 11px;
       font-weight: 900;
-      line-height: 1;
+      white-space: nowrap;
     }
-    .map-pick-form { grid-template-columns: .8fr 1fr auto; padding: 10px; }
+    .minimize-btn { flex: 0 0 38px; }
+    .map-pick-form { grid-template-columns: .8fr 1fr; padding: 10px; }
     .map-pick-form .field { gap: 3px; }
     .map-pick-form .field label { font-size: 10px; }
     .map-pick-form .input, .map-pick-form .select { min-height: 40px; padding: 8px 10px; font-size: 12px; }
-    .wheel-map-overlay .picks-wrap { margin-top: 10px; }
-    .wheel-map-overlay .pick-chips { max-height: 70px; overflow-y: auto; }
-    .wheel-map-overlay .wheel-stage { width: min(100%, 340px); margin-top: 5px; }
+    .wheel-map-overlay .picks-wrap {
+      display: flex;
+      min-height: 0;
+      flex: 0 0 auto;
+      flex-direction: column;
+      margin: 10px 0 0;
+    }
+    .wheel-map-overlay .picks-head .link-btn { font-size: 11px; }
+    .wheel-map-overlay .pick-chips {
+      min-height: 44px;
+      max-height: 88px;
+      padding: 7px;
+      flex: 0 0 auto;
+      align-content: flex-start;
+      align-items: flex-start;
+      overflow-y: auto;
+      background: rgba(201, 223, 183, .16);
+      border: 1px solid #d4e4c7;
+      border-radius: var(--radius-md);
+      scrollbar-color: var(--purple) transparent;
+    }
+    .wheel-map-overlay .pick-chip {
+      gap: 5px;
+      padding: 5px 7px 5px 9px;
+    }
+    .wheel-map-overlay .pick-chip button {
+      width: 18px;
+      height: 18px;
+    }
+    .wheel-map-overlay .pick-chips.is-empty {
+      height: 100px;
+      min-height: 100px;
+      max-height: 100px;
+      align-content: stretch;
+      align-items: stretch;
+      padding: 0;
+      background: var(--cream);
+      border-color: #cfbfb0;
+      border-style: dashed;
+      overflow: hidden;
+    }
+    .wheel-map-overlay .pick-chips.is-empty .empty-state {
+      display: grid;
+      height: 100%;
+      min-height: 0;
+      padding: 7px 12px;
+      place-items: center;
+      background: transparent;
+      border: 0;
+    }
+    .wheel-map-overlay .pick-chips.is-dragover {
+      background: rgba(216, 200, 238, .4);
+      border-radius: var(--radius-md);
+      box-shadow: inset 0 0 0 3px #a98ac8;
+    }
+    .wheel-map-overlay .pick-chips.is-dragover .empty-state {
+      color: var(--brown);
+      background: transparent;
+      border-color: transparent;
+    }
+    .wheel-map-overlay .wheel-stage {
+      width: min(100%, 340px);
+      margin: 24px auto 0;
+      flex: 0 0 auto;
+      transition: width .2s ease;
+    }
+    .wheel-map-overlay:has(.winner-card.show) .wheel-stage { width: min(100%, 280px); }
+    .wheel-map-overlay .wheel-actions { flex: 0 0 auto; margin-bottom: 0; }
     .wheel-map-overlay .wheel-center { width: 70px; height: 70px; border-width: 6px; font-size: 12px; }
     .wheel-map-overlay .spin-btn { min-width: 165px; min-height: 46px; }
     .wheel-stage.is-dragover::after {
@@ -816,22 +1403,105 @@
     .route-map-overlay {
       right: 457px;
       bottom: 16px;
-      left: 372px;
+      left: 432px;
       padding: 13px;
       border-radius: 18px;
     }
+    .map-experience.wheel-is-collapsed .route-map-overlay { right: 16px; left: 480px; }
     .route-title { align-items: center; margin-bottom: 8px; }
+    .route-title .section-kicker { font-family: var(--font-heading); }
     .route-title strong { display: block; color: var(--brown); font-size: 14px; }
-    .route-map-overlay .route-info { grid-template-columns: 105px 105px minmax(160px, 1fr); margin-top: 0; }
+    .route-map-overlay .route-info { grid-template-columns: max-content max-content minmax(160px, 1fr); margin-top: 0; }
     .route-map-overlay .route-destination { grid-column: auto; }
     .route-map-overlay .route-stat { padding: 8px 10px; }
+    .route-map-overlay .route-stat span { white-space: nowrap; }
     .route-map-overlay .route-stat strong { font-size: 14px; }
     .route-map-overlay .route-note { min-height: 0; margin: 7px 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .route-map-toolbar {
+      position: absolute;
+      z-index: 4;
+      top: -8px;
+      right: 0;
+      display: flex;
+      gap: 4px;
+      transform: translateY(-100%);
+    }
+    .route-map-toolbar button {
+      position: relative;
+      display: grid;
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      place-items: center;
+      color: var(--brown);
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(59, 42, 36, .12);
+      font-size: 20px;
+      line-height: 1;
+    }
+    .route-map-toolbar button:hover {
+      background: rgba(201, 223, 183, .8);
+      border-color: #b7d29f;
+      box-shadow: 0 9px 20px rgba(59, 42, 36, .1);
+    }
+    .route-map-toolbar svg { display: block; width: 16px; height: 16px; }
+    @media (min-width: 1350px) {
+      .map-experience:not(.wheel-is-collapsed) .route-map-overlay { right: 505px; }
+      .map-experience:not(.wheel-is-collapsed) .route-map-toolbar {
+        top: 50%;
+        right: auto;
+        left: calc(100% + 8px);
+        flex-direction: column;
+        transform: translateY(-50%);
+      }
+    }
+    .map-experience.wheel-is-collapsed .route-map-toolbar {
+      top: 50%;
+      right: auto;
+      left: -48px;
+      flex-direction: column;
+      transform: translateY(-50%);
+    }
+    .route-label {
+      padding: 5px 8px !important;
+      color: var(--brown) !important;
+      background: var(--white) !important;
+      border: 2px solid var(--purple) !important;
+      border-radius: 9px !important;
+      box-shadow: 0 5px 14px rgba(59, 42, 36, .16) !important;
+      font: 700 11px var(--font-body) !important;
+    }
+    .route-label::before { display: none !important; }
+    body, input, select, textarea { font-weight: 400; }
+    .btn, .sync-status, .nav button, button {
+      font-family: var(--font-heading);
+      font-weight: 700;
+    }
+    .brand-copy span,
+    .eyebrow,
+    .section-kicker,
+    .field label,
+    .stat span,
+    .picks-head span,
+    .winner-card p,
+    .route-stat span { font-weight: 600; }
+    .stat strong,
+    .restaurant-name,
+    .winner-card strong,
+    .route-stat strong,
+    .win-count { font-weight: 700; }
+    h1, h2, h3, h4, h5, h6, .brand-copy strong {
+      font-family: var(--font-heading);
+      font-weight: 900;
+    }
 
     @media (max-width: 1180px) {
-      .map-list-overlay { width: 300px; }
+      .map-list-overlay { width: 380px; }
       .wheel-map-overlay { width: 370px; }
-      .route-map-overlay { right: 402px; left: 332px; }
+      .route-map-overlay { right: 402px; left: 412px; }
+      .map-experience.wheel-is-collapsed .route-map-overlay { left: 460px; }
       .management-library .restaurant-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 980px) {
@@ -839,20 +1509,23 @@
       .map-list-overlay { right: calc(50% + 4px); bottom: auto; width: auto; height: 590px; }
       .wheel-map-overlay { bottom: auto; left: calc(50% + 4px); width: auto; height: 820px; max-height: calc(100vh - 110px); }
       .route-map-overlay { right: 16px; bottom: 16px; left: 16px; }
+      .map-experience.wheel-is-collapsed .route-map-overlay { left: 64px; }
     }
     @media (max-width: 830px) {
       .app-shell { width: min(100% - 22px, 700px); }
       .header-inner { flex-wrap: wrap; }
-      .nav { order: 3; width: 100%; justify-content: center; overflow-x: auto; }
+      .nav { order: 3; width: 100%; justify-content: center; margin-left: 0; overflow-x: auto; }
       .page-hero { grid-template-columns: 1fr; }
       .page-panel { padding-top: 32px; }
       .records-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 700px) {
+      .site-header .header-inner, .site-footer { width: calc(100% - 28px); }
       .map-experience { min-height: 1510px; }
       .map-list-overlay { top: 10px; right: 10px; left: 10px; height: 445px; }
       .wheel-map-overlay { top: 465px; right: 10px; left: 10px; height: 820px; max-height: none; }
       .route-map-overlay { right: 10px; bottom: 10px; left: 10px; }
+      .map-experience.wheel-is-collapsed .route-map-overlay { right: 10px; left: 58px; }
       .management-library .restaurant-list { grid-template-columns: 1fr; }
       .management-library .library-tools { grid-template-columns: 1fr; }
     }
@@ -864,7 +1537,7 @@
       .header-actions > .btn-green { display: none; }
       .sync-status { max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .nav { justify-content: flex-start; }
-      .nav a { flex: 0 0 auto; font-size: 12px; }
+      .nav button { flex: 0 0 auto; font-size: 12px; }
       h1 { font-size: 42px; }
       .hero-stats { padding: 7px; }
       .stat { padding: 10px 4px; }
@@ -892,22 +1565,27 @@
 <body>
   <header class="site-header">
     <div class="app-shell header-inner">
-      <a class="brand" href="#map" data-tab-target="map" aria-label="Austin Lunch Club map">
+      <a class="brand" href="#map" data-tab-target="map" aria-label="Fork in the Road map">
         <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 3h16v8a8 8 0 0 1-16 0V3Z"/><path d="M8 3v8a4 4 0 0 0 8 0V3"/><path d="M12 15v6"/><path d="M8 21h8"/>
+          <svg width="30" height="24" viewBox="0 0 30 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1.125 0.75C1.748 0.75 2.25 1.252 2.25 1.875V7.875C2.25 8.081 2.419 8.25 2.625 8.25H3V1.875C3 1.252 3.502 0.75 4.125 0.75C4.748 0.75 5.25 1.252 5.25 1.875V8.25H5.625C5.831 8.25 6 8.081 6 7.875V1.875C6 1.252 6.502 0.75 7.125 0.75C7.748 0.75 8.25 1.252 8.25 1.875V7.875C8.25 9.323 7.073 10.5 5.625 10.5H5.25V22.125C5.25 22.748 4.748 23.25 4.125 23.25C3.502 23.25 3 22.748 3 22.125V10.5H2.625C1.177 10.5 0 9.323 0 7.875V1.875C0 1.252 0.502 0.75 1.125 0.75ZM26.25 7.5V12.75H27.75V3.994C26.972 4.711 26.25 5.827 26.25 7.5ZM27.75 15H25.5C24.67 15 24 14.33 24 13.5V7.5C24 2.775 27.947 1.087 28.739 0.797C28.833 0.764 28.927 0.75 29.025 0.75C29.564 0.75 30.005 1.186 30.005 1.73V22.125C30.005 22.748 29.503 23.25 28.88 23.25C28.257 23.25 27.755 22.748 27.755 22.125V15H27.75ZM15.75 22.5C11.93 22.5 8.587 20.461 6.75 17.409V11.845C7.017 11.77 7.27 11.667 7.514 11.545C7.505 11.695 7.5 11.85 7.5 12C7.5 16.556 11.194 20.25 15.75 20.25C19.069 20.25 21.928 18.291 23.236 15.469C23.733 16.041 24.445 16.421 25.242 16.491C23.559 20.044 19.94 22.5 15.75 22.5ZM9.75 3.384C11.452 2.193 13.519 1.5 15.75 1.5C18.577 1.5 21.141 2.616 23.03 4.43C22.725 5.25 22.533 6.188 22.505 7.257C21.01 5.138 18.544 3.751 15.75 3.751C13.388 3.751 11.255 4.745 9.75 6.338V3.384ZM19.5 12C19.5 9.929 17.821 8.25 15.75 8.25C13.679 8.25 12 9.929 12 12C12 14.071 13.679 15.75 15.75 15.75C17.821 15.75 19.5 14.071 19.5 12ZM9.75 12C9.75 8.686 12.436 6 15.75 6C19.064 6 21.75 8.686 21.75 12C21.75 15.314 19.064 18 15.75 18C12.436 18 9.75 15.314 9.75 12Z" fill="currentColor"/>
           </svg>
         </span>
-        <span class="brand-copy"><strong>Austin Lunch Club</strong><span>Arista Networks · Fridays</span></span>
+        <span class="brand-copy"><strong>Fork in the Road</strong><span>Lunch Club @ Arista ATX</span></span>
       </a>
       <nav class="nav" aria-label="Main navigation">
-        <a href="#map" data-tab-target="map" aria-current="page">Map & wheel</a>
-        <a href="#restaurants" data-tab-target="restaurants">Restaurant list</a>
-        <a href="#records" data-tab-target="records">Leaderboard & log</a>
+        <button type="button" data-tab-target="map" aria-current="page">The Hitchhiker’s Guide to Lunch</button>
+        <button type="button" data-tab-target="restaurants">ARP (Appetite Resolution Protocol)</button>
+        <button type="button" data-tab-target="records">Victors of the Hunger Games</button>
       </nav>
       <div class="header-actions">
         <button class="sync-status" id="syncStatus" data-state="local" type="button" data-open-sync title="Configure shared Google Sheets data">Local only</button>
-        <button class="btn btn-green" type="button" data-open-log>+ Add past lunch</button>
+        <button class="btn btn-green compact-add-btn" type="button" data-open-log>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M7.25 13V8.75H3C2.58579 8.75 2.25 8.41421 2.25 8C2.25 7.58579 2.58579 7.25 3 7.25H7.25V3C7.25 2.58579 7.58579 2.25 8 2.25C8.41421 2.25 8.75 2.58579 8.75 3V7.25H13C13.4142 7.25 13.75 7.58579 13.75 8C13.75 8.41421 13.4142 8.75 13 8.75H8.75V13C8.75 13.4142 8.41421 13.75 8 13.75C7.58579 13.75 7.25 13.4142 7.25 13Z" fill="#262629"/>
+          </svg>
+          Add past lunch
+        </button>
       </div>
     </div>
   </header>
@@ -921,36 +1599,112 @@
         <aside class="map-list-overlay" aria-label="Restaurants on the map">
           <div class="map-overlay-head">
             <div>
-              <span class="section-kicker">From Arista Austin</span>
               <h1>Find lunch</h1>
             </div>
-            <button class="btn btn-icon btn-green" id="randomRestaurantBtn" type="button" title="Choose a random restaurant" aria-label="Choose a random restaurant">↝</button>
+            <div class="map-heading-actions">
+              <div class="map-filter-control" id="mapFilterControl">
+                <button class="btn btn-icon btn-green map-heading-action" id="mapFilterBtn" type="button"
+                  data-tooltip="filter restaurants" aria-label="Filter and sort restaurants"
+                  aria-haspopup="dialog" aria-expanded="false" aria-controls="mapFilterMenu">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M0 3.455C0 2.377 0.877 1.5 1.955 1.5H22.046C23.124 1.5 24.001 2.377 24.001 3.455C24.001 3.905 23.846 4.341 23.56 4.688L15.751 14.274V20.986C15.751 21.82 15.071 22.5 14.237 22.5C13.895 22.5 13.562 22.383 13.295 22.172L8.959 18.731C8.509 18.375 8.251 17.836 8.251 17.264V14.273L0.442 4.687C0.156 4.34 0.001 3.904 0.001 3.454L0 3.455ZM2.578 3.75L10.247 13.163C10.411 13.365 10.5 13.613 10.5 13.875V17.081L13.5 19.462V13.875C13.5 13.617 13.589 13.364 13.753 13.163L21.422 3.75H2.578Z" fill="#262629"/>
+                  </svg>
+                </button>
+                <div class="map-filter-menu" id="mapFilterMenu" role="dialog" aria-label="Filter and sort restaurants" hidden>
+                  <div class="map-filter-group">
+                    <span class="map-filter-label">Sort by</span>
+                    <div class="map-filter-options" id="mapSortOptions"></div>
+                  </div>
+                  <div class="map-filter-group">
+                    <span class="map-filter-label">Cuisine</span>
+                    <div class="map-filter-options map-cuisine-options" id="mapCuisineOptions"></div>
+                  </div>
+                  <button class="link-btn map-filter-clear" id="clearMapFiltersBtn" type="button">Clear filters</button>
+                </div>
+              </div>
+              <button class="btn btn-icon btn-green map-heading-action" id="mapAddRestaurantBtn" type="button"
+                data-tooltip="add restaurant" aria-label="Add restaurant">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M7.25 13V8.75H3C2.58579 8.75 2.25 8.41421 2.25 8C2.25 7.58579 2.58579 7.25 3 7.25H7.25V3C7.25 2.58579 7.58579 2.25 8 2.25C8.41421 2.25 8.75 2.58579 8.75 3V7.25H13C13.4142 7.25 13.75 7.58579 13.75 8C13.75 8.41421 13.4142 8.75 13 8.75H8.75V13C8.75 13.4142 8.41421 13.75 8 13.75C7.58579 13.75 7.25 13.4142 7.25 13Z" fill="#262629"/>
+                </svg>
+              </button>
+            <button class="btn btn-icon btn-green map-heading-action" id="randomRestaurantBtn" type="button"
+              data-tooltip="random restaurant" aria-label="Random restaurant">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M19.922 1.45303L23.672 5.20303C24.113 5.64403 24.113 6.35603 23.672 6.79203L19.922 10.542C19.481 10.983 18.769 10.983 18.333 10.542C17.897 10.101 17.892 9.38903 18.333 8.95303L20.161 7.12503H16.5C15.909 7.12503 15.356 7.40203 15 7.87503L12.844 10.748L11.438 8.87303L13.201 6.52503C13.979 5.48403 15.203 4.87503 16.501 4.87503H20.162L18.329 3.04703C17.888 2.60603 17.888 1.89403 18.329 1.45803C18.77 1.02203 19.482 1.01703 19.918 1.45803L19.922 1.45303ZM9.563 15.127L7.801 17.475C7.023 18.516 5.799 19.125 4.501 19.125H1.126C0.503 19.125 0.001 18.623 0.001 18C0.001 17.377 0.503 16.875 1.126 16.875H4.501C5.092 16.875 5.645 16.598 6.001 16.125L8.157 13.252L9.563 15.127ZM18.328 13.453C18.769 13.012 19.481 13.012 19.917 13.453L23.667 17.203C24.108 17.644 24.108 18.356 23.667 18.792L19.917 22.542C19.476 22.983 18.764 22.983 18.328 22.542C17.892 22.101 17.887 21.389 18.328 20.953L20.156 19.125H16.5C15.202 19.125 13.978 18.516 13.2 17.475L6 7.87503C5.644 7.40203 5.091 7.12503 4.5 7.12503H1.125C0.502 7.12503 0 6.62303 0 6.00003C0 5.37703 0.502 4.87503 1.125 4.87503H4.5C5.798 4.87503 7.022 5.48403 7.8 6.52503L15 16.125C15.356 16.598 15.909 16.875 16.5 16.875H20.161L18.333 15.047C17.892 14.606 17.892 13.894 18.333 13.458L18.328 13.453Z" fill="currentColor"/>
+              </svg>
+            </button>
+            </div>
           </div>
           <label class="sr-only" for="mapRestaurantSearch">Search map restaurants</label>
           <input class="input map-search" id="mapRestaurantSearch" type="search" placeholder="Search restaurants or cuisine…">
-          <p class="map-list-help">Click a card for its route. Drag it onto the wheel or use the + button.</p>
+          <p class="map-list-help">Click a card for its route. Drag it onto the wheel to add it.</p>
           <div class="map-restaurant-list" id="mapRestaurantList"></div>
         </aside>
 
         <section class="wheel-map-overlay" id="wheelPanel" aria-labelledby="wheel-title">
           <div class="wheel-overlay-head">
-            <div><span class="section-kicker">This Friday</span><h2 id="wheel-title">Lunch wheel</h2></div>
-            <button class="minimize-btn" id="minimizeWheelBtn" type="button" title="Minimize wheel" aria-label="Minimize wheel">−</button>
+            <div class="wheel-heading">
+              <h2 id="wheel-title">Lunch wheel</h2>
+              <span class="wheel-heading-dot" aria-hidden="true">•</span>
+              <time class="wheel-date-static" id="lunchDateDisplay"></time>
+            </div>
+            <button class="btn btn-icon btn-green minimize-btn" id="minimizeWheelBtn" type="button" title="Minimize wheel" aria-label="Minimize wheel">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M13.75 7C14.1642 7 14.5 7.33579 14.5 7.75C14.5 8.16421 14.1642 8.5 13.75 8.5H2.75C2.33579 8.5 2 8.16421 2 7.75C2 7.33579 2.33579 7 2.75 7H13.75Z" fill="#262629"/>
+              </svg>
+            </button>
           </div>
-          <label class="field wheel-date">
-            <span class="sr-only">Lunch date</span>
-            <input class="input" id="lunchDate" type="date">
-          </label>
+          <input id="lunchDate" type="hidden">
           <form class="pick-form map-pick-form" id="pickForm">
             <div class="field">
-              <label for="pickerName">Picked by</label>
-              <input class="input" id="pickerName" autocomplete="name" maxlength="50" placeholder="Teammate name" required>
+              <label for="teammateSelectButton">Picked by</label>
+              <div class="restaurant-combobox teammate-combobox" id="teammateCombobox">
+                <input id="pickerName" type="hidden">
+                <button class="select combo-trigger is-placeholder" id="teammateSelectButton" type="button"
+                  aria-haspopup="listbox" aria-expanded="false" aria-controls="teammateSelectMenu">
+                  <span id="teammateSelectLabel">Choose teammate…</span>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M11.9697 5.46967C12.2626 5.17678 12.7373 5.17678 13.0302 5.46967C13.3231 5.76256 13.3231 6.23732 13.0302 6.53022L8.53022 11.0302C8.23732 11.3231 7.76256 11.3231 7.46967 11.0302L2.96967 6.53022C2.67678 6.23732 2.67678 5.76256 2.96967 5.46967C3.26256 5.17678 3.73732 5.17678 4.03022 5.46967L7.99994 9.4394L11.9697 5.46967Z" fill="#262629"/>
+                  </svg>
+                </button>
+                <div class="combo-menu teammate-menu" id="teammateSelectMenu" hidden>
+                  <div class="combo-options" id="teammateSelectOptions" role="listbox" aria-label="Teammates"></div>
+                  <div class="combo-footer teammate-add-footer">
+                    <button class="btn btn-small btn-green" id="showAddTeammateBtn" type="button">+ Add teammate</button>
+                    <div class="teammate-add-form" id="teammateAddForm" hidden>
+                      <input class="input" id="newTeammateName" maxlength="50" autocomplete="off" placeholder="Teammate name">
+                      <button class="btn btn-small btn-primary" id="saveTeammateBtn" type="button">Save</button>
+                      <button class="link-btn" id="cancelAddTeammateBtn" type="button">Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="field">
-              <label for="restaurantSelect">Restaurant</label>
-              <select class="select" id="restaurantSelect" required></select>
+              <label for="restaurantSelectButton">Restaurant</label>
+              <div class="restaurant-combobox wheel-restaurant-combobox" id="wheelRestaurantCombobox">
+                <input id="restaurantSelect" type="hidden">
+                <button class="select combo-trigger is-placeholder" id="restaurantSelectButton" type="button"
+                  aria-haspopup="listbox" aria-expanded="false" aria-controls="restaurantSelectMenu">
+                  <span id="restaurantSelectLabel">Choose a restaurant…</span>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M11.9697 5.46967C12.2626 5.17678 12.7373 5.17678 13.0302 5.46967C13.3231 5.76256 13.3231 6.23732 13.0302 6.53022L8.53022 11.0302C8.23732 11.3231 7.76256 11.3231 7.46967 11.0302L2.96967 6.53022C2.67678 6.23732 2.67678 5.76256 2.96967 5.46967C3.26256 5.17678 3.73732 5.17678 4.03022 5.46967L7.99994 9.4394L11.9697 5.46967Z" fill="#262629"/>
+                  </svg>
+                </button>
+                <div class="combo-menu" id="restaurantSelectMenu" hidden>
+                  <div class="combo-search-wrap">
+                    <label class="sr-only" for="restaurantSelectSearch">Search wheel restaurants</label>
+                    <input class="input" id="restaurantSelectSearch" type="search" autocomplete="off" placeholder="Search restaurants…">
+                  </div>
+                  <div class="combo-options" id="restaurantSelectOptions" role="listbox" aria-label="Restaurants for the wheel"></div>
+                  <div class="combo-footer">
+                    <span>Not on the list?</span>
+                    <button class="btn btn-small btn-green" id="wheelAddRestaurantBtn" type="button">+ Add restaurant</button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <button class="btn btn-primary" type="submit">Add</button>
           </form>
           <div class="picks-wrap">
             <div class="picks-head">
@@ -980,15 +1734,32 @@
 
         <section class="route-map-overlay" aria-labelledby="map-title">
           <div class="route-title">
-            <div><span class="section-kicker">Lunch run</span><strong id="map-title">Arista Austin → destination</strong></div>
+            <div><span class="section-kicker" id="map-title">Lunch run</span></div>
             <a class="btn btn-small" id="googleDirectionsLink" href="https://www.google.com/maps/dir/?api=1&origin=2700+Via+Fortuna,+Austin,+TX+78746" target="_blank" rel="noopener">Google Maps ↗</a>
           </div>
           <div class="route-info">
-            <div class="route-stat"><span>Drive time</span><strong id="routeTime">—</strong></div>
-            <div class="route-stat"><span>Distance</span><strong id="routeDistance">—</strong></div>
-            <div class="route-stat route-destination"><span>Destination</span><strong id="routeDestination">Choose a restaurant card</strong></div>
+            <div class="route-stat"><span>Drive from office</span><strong class="is-placeholder" id="routeTime">—</strong></div>
+            <div class="route-stat"><span>Distance</span><strong class="is-placeholder" id="routeDistance">—</strong></div>
+            <div class="route-stat route-destination"><span>Destination</span><strong class="is-placeholder" id="routeDestination">Choose a restaurant card</strong></div>
           </div>
           <p class="route-note" id="routeNote">Live estimates use OpenStreetMap and OSRM. Actual Friday traffic may vary.</p>
+          <div class="route-map-toolbar" aria-label="Map zoom controls">
+            <button id="mapZoomInBtn" type="button" data-tooltip="zoom in" aria-label="Zoom in">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M7.25 13V8.75H3C2.58579 8.75 2.25 8.41421 2.25 8C2.25 7.58579 2.58579 7.25 3 7.25H7.25V3C7.25 2.58579 7.58579 2.25 8 2.25C8.41421 2.25 8.75 2.58579 8.75 3V7.25H13C13.4142 7.25 13.75 7.58579 13.75 8C13.75 8.41421 13.4142 8.75 13 8.75H8.75V13C8.75 13.4142 8.41421 13.75 8 13.75C7.58579 13.75 7.25 13.4142 7.25 13Z" fill="currentColor"/>
+              </svg>
+            </button>
+            <button id="mapZoomOutBtn" type="button" data-tooltip="zoom out" aria-label="Zoom out">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M13.75 7C14.1642 7 14.5 7.33579 14.5 7.75C14.5 8.16421 14.1642 8.5 13.75 8.5H2.75C2.33579 8.5 2 8.16421 2 7.75C2 7.33579 2.33579 7 2.75 7H13.75Z" fill="currentColor"/>
+              </svg>
+            </button>
+            <button id="mapOfficeBtn" type="button" data-tooltip="zoom to office" aria-label="Zoom to Arista office">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M12 0C12.623 0 13.125 0.502 13.125 1.125V3.07C17.194 3.576 20.423 6.806 20.93 10.875H22.875C23.498 10.875 24 11.377 24 12C24 12.623 23.498 13.125 22.875 13.125H20.93C20.424 17.194 17.194 20.423 13.125 20.93V22.875C13.125 23.498 12.623 24 12 24C11.377 24 10.875 23.498 10.875 22.875V20.93C6.806 20.424 3.577 17.194 3.07 13.125H1.125C0.502 13.125 0 12.623 0 12C0 11.377 0.502 10.875 1.125 10.875H3.07C3.576 6.806 6.806 3.577 10.875 3.07V1.125C10.875 0.502 11.377 0 12 0ZM5.25 12C5.25 15.728 8.272 18.75 12 18.75C15.728 18.75 18.75 15.728 18.75 12C18.75 8.272 15.728 5.25 12 5.25C8.272 5.25 5.25 8.272 5.25 12ZM14.25 12C14.25 10.757 13.243 9.75 12 9.75C10.757 9.75 9.75 10.757 9.75 12C9.75 13.243 10.757 14.25 12 14.25C13.243 14.25 14.25 13.243 14.25 12ZM7.5 12C7.5 9.515 9.515 7.5 12 7.5C14.485 7.5 16.5 9.515 16.5 12C16.5 14.485 14.485 16.5 12 16.5C9.515 16.5 7.5 14.485 7.5 12Z" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
         </section>
       </div>
     </section>
@@ -996,23 +1767,39 @@
     <section class="tab-panel page-panel" id="restaurants-tab" data-tab-panel="restaurants" hidden>
       <div class="app-shell">
         <section class="page-hero">
-          <div><p class="eyebrow">Restaurant library</p><h1>All the contenders.</h1><p>Add, edit, rate, or remove restaurants here. Editing is intentionally limited to this tab.</p></div>
+          <div class="tab-page-heading"><span class="section-kicker">Restaurant library</span><h2>All the contenders.</h2><p>Add, edit, rate, or remove restaurants here.</p></div>
           <div class="hero-stats" aria-label="Lunch club totals">
             <div class="stat"><strong id="restaurantCount">0</strong><span>Spots</span></div>
             <div class="stat"><strong id="pickCount">0</strong><span>On wheel</span></div>
-            <div class="stat"><strong id="lunchCount">0</strong><span>Lunches</span></div>
+            <div class="stat"><strong id="lunchCount">0</strong><span>Lunch'd</span></div>
           </div>
         </section>
         <section class="card library-card management-library" id="restaurants">
           <div class="section-head">
             <div><span class="section-kicker">Manage restaurants</span><h2>Restaurant list</h2><p>Google ratings refresh every 21 days when Places API is configured. Manual ratings remain available as a fallback.</p></div>
-            <button class="btn btn-purple" id="addRestaurantBtn" type="button">+ Add restaurant</button>
+            <button class="btn btn-green compact-add-btn" id="addRestaurantBtn" type="button">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M7.25 13V8.75H3C2.58579 8.75 2.25 8.41421 2.25 8C2.25 7.58579 2.58579 7.25 3 7.25H7.25V3C7.25 2.58579 7.58579 2.25 8 2.25C8.41421 2.25 8.75 2.58579 8.75 3V7.25H13C13.4142 7.25 13.75 7.58579 13.75 8C13.75 8.41421 13.4142 8.75 13 8.75H8.75V13C8.75 13.4142 8.41421 13.75 8 13.75C7.58579 13.75 7.25 13.4142 7.25 13Z" fill="#262629"/>
+              </svg>
+              Add restaurant
+            </button>
           </div>
           <div class="library-tools">
             <label class="sr-only" for="restaurantSearch">Search restaurants</label>
             <input class="input" id="restaurantSearch" type="search" placeholder="Search restaurants…">
-            <label class="sr-only" for="categoryFilter">Filter by category</label>
-            <select class="select category-filter" id="categoryFilter"><option value="">All food types</option></select>
+            <div class="restaurant-combobox category-filter" id="categoryFilterCombobox">
+              <input id="categoryFilter" type="hidden">
+              <button class="select combo-trigger" id="categoryFilterButton" type="button"
+                aria-haspopup="listbox" aria-expanded="false" aria-controls="categoryFilterMenu">
+                <span id="categoryFilterLabel">All food types</span>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M11.9697 5.46967C12.2626 5.17678 12.7373 5.17678 13.0302 5.46967C13.3231 5.76256 13.3231 6.23732 13.0302 6.53022L8.53022 11.0302C8.23732 11.3231 7.76256 11.3231 7.46967 11.0302L2.96967 6.53022C2.67678 6.23732 2.67678 5.76256 2.96967 5.46967C3.26256 5.17678 3.73732 5.17678 4.03022 5.46967L7.99994 9.4394L11.9697 5.46967Z" fill="#262629"/>
+                </svg>
+              </button>
+              <div class="combo-menu category-menu" id="categoryFilterMenu" hidden>
+                <div class="combo-options" id="categoryFilterOptions" role="listbox" aria-label="Food types" aria-multiselectable="true"></div>
+              </div>
+            </div>
           </div>
           <div class="restaurant-list" id="restaurantList"></div>
         </section>
@@ -1026,7 +1813,6 @@
           <h2>Bragging rights, preserved.</h2>
           <p>Saving a wheel result updates both the lunch log and the leaderboard.</p>
         </div>
-        <button class="btn btn-purple" type="button" data-open-log>+ Add past lunch</button>
       </div>
       <div class="records-grid">
         <section class="card leader-card" aria-labelledby="leader-title">
@@ -1044,7 +1830,12 @@
               <h3 id="history-title">Lunch log</h3>
               <p>Your previously chosen Friday spots.</p>
             </div>
-            <button class="btn btn-small" type="button" data-open-log>Add entry</button>
+            <button class="btn btn-green compact-add-btn" type="button" data-open-log>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M7.25 13V8.75H3C2.58579 8.75 2.25 8.41421 2.25 8C2.25 7.58579 2.58579 7.25 3 7.25H7.25V3C7.25 2.58579 7.58579 2.25 8 2.25C8.41421 2.25 8.75 2.58579 8.75 3V7.25H13C13.4142 7.25 13.75 7.58579 13.75 8C13.75 8.41421 13.4142 8.75 13 8.75H8.75V13C8.75 13.4142 8.41421 13.75 8 13.75C7.58579 13.75 7.25 13.4142 7.25 13Z" fill="#262629"/>
+              </svg>
+              Add past lunch
+            </button>
           </div>
           <div class="history-list" id="historyList"></div>
         </section>
@@ -1076,8 +1867,20 @@
         </div>
         <div class="modal-grid">
           <div class="field">
-            <label for="restaurantCategoryInput">Food type</label>
-            <input class="input" id="restaurantCategoryInput" list="categoryOptions" maxlength="50" required placeholder="e.g. Mexican / Tacos">
+            <label for="restaurantCategoryButton">Food type</label>
+            <div class="restaurant-combobox" id="restaurantCategoryCombobox">
+              <input id="restaurantCategoryInput" type="hidden">
+              <button class="select combo-trigger is-placeholder" id="restaurantCategoryButton" type="button"
+                aria-haspopup="listbox" aria-expanded="false" aria-controls="restaurantCategoryMenu">
+                <span id="restaurantCategoryLabel">Choose a food type…</span>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M11.9697 5.46967C12.2626 5.17678 12.7373 5.17678 13.0302 5.46967C13.3231 5.76256 13.3231 6.23732 13.0302 6.53022L8.53022 11.0302C8.23732 11.3231 7.76256 11.3231 7.46967 11.0302L2.96967 6.53022C2.67678 6.23732 2.67678 5.76256 2.96967 5.46967C3.26256 5.17678 3.73732 5.17678 4.03022 5.46967L7.99994 9.4394L11.9697 5.46967Z" fill="#262629"/>
+                </svg>
+              </button>
+              <div class="combo-menu category-menu" id="restaurantCategoryMenu" hidden>
+                <div class="combo-options" id="restaurantCategoryOptions" role="listbox" aria-label="Food types"></div>
+              </div>
+            </div>
           </div>
           <div class="field">
             <label for="restaurantAddressInput">Austin address <span style="color:var(--muted)">(optional)</span></label>
@@ -1089,7 +1892,6 @@
           <input class="input" id="restaurantRatingInput" type="number" min="1" max="5" step="0.1" inputmode="decimal" placeholder="e.g. 4.6">
           <p class="field-help">An automatic Google Places refresh will replace this value when configured.</p>
         </div>
-        <datalist id="categoryOptions"></datalist>
         <div class="modal-actions">
           <button class="link-btn danger" id="deleteRestaurantBtn" type="button" hidden>Delete restaurant</button>
           <button class="btn" type="button" data-close-dialog>Cancel</button>
@@ -1102,23 +1904,99 @@
   <dialog id="logDialog">
     <form id="logForm">
       <div class="modal-head">
-        <div><h2>Add a past lunch</h2><p>Record a winner to update the leaderboard.</p></div>
+        <div><h2 id="logModalTitle">Add a past lunch</h2><p>Record a winner to update the leaderboard.</p></div>
         <button class="close-btn" type="button" data-close-dialog aria-label="Close">×</button>
       </div>
       <div class="modal-body">
+        <input id="editingLogId" type="hidden">
         <div class="modal-grid">
           <div class="field">
-            <label for="logDate">Lunch date</label>
-            <input class="input" id="logDate" type="date" required>
+            <label for="logDateButton">Lunch date</label>
+            <div class="date-picker" id="logDatePicker">
+              <input id="logDate" type="hidden">
+              <button class="select combo-trigger date-trigger is-placeholder" id="logDateButton" type="button"
+                aria-haspopup="dialog" aria-expanded="false" aria-controls="logDateMenu">
+                <span id="logDateLabel">Choose a date…</span>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M11.9697 5.46967C12.2626 5.17678 12.7373 5.17678 13.0302 5.46967C13.3231 5.76256 13.3231 6.23732 13.0302 6.53022L8.53022 11.0302C8.23732 11.3231 7.76256 11.3231 7.46967 11.0302L2.96967 6.53022C2.67678 6.23732 2.67678 5.76256 2.96967 5.46967C3.26256 5.17678 3.73732 5.17678 4.03022 5.46967L7.99994 9.4394L11.9697 5.46967Z" fill="#262629"/>
+                </svg>
+              </button>
+              <div class="date-menu" id="logDateMenu" role="dialog" aria-label="Choose lunch date" hidden>
+                <div class="date-calendar-head">
+                  <strong id="logDateMonth"></strong>
+                  <div class="date-calendar-nav">
+                    <button type="button" id="logDatePreviousMonth" aria-label="Previous month">‹</button>
+                    <button type="button" id="logDateNextMonth" aria-label="Next month">›</button>
+                  </div>
+                </div>
+                <div class="date-weekdays" aria-hidden="true">
+                  <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                </div>
+                <div class="date-days" id="logDateDays" role="grid"></div>
+              </div>
+            </div>
           </div>
           <div class="field">
-            <label for="logPerson">Winning picker</label>
-            <input class="input" id="logPerson" maxlength="50" placeholder="Teammate name" required>
+            <label for="logTeammateButton">Winning picker</label>
+            <div class="restaurant-combobox teammate-combobox" id="logTeammateCombobox">
+              <input id="logPerson" type="hidden">
+              <button class="select combo-trigger is-placeholder" id="logTeammateButton" type="button"
+                aria-haspopup="listbox" aria-expanded="false" aria-controls="logTeammateMenu">
+                <span id="logTeammateLabel">Choose teammate…</span>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M11.9697 5.46967C12.2626 5.17678 12.7373 5.17678 13.0302 5.46967C13.3231 5.76256 13.3231 6.23732 13.0302 6.53022L8.53022 11.0302C8.23732 11.3231 7.76256 11.3231 7.46967 11.0302L2.96967 6.53022C2.67678 6.23732 2.67678 5.76256 2.96967 5.46967C3.26256 5.17678 3.73732 5.17678 4.03022 5.46967L7.99994 9.4394L11.9697 5.46967Z" fill="#262629"/>
+                </svg>
+              </button>
+              <div class="combo-menu teammate-menu" id="logTeammateMenu" hidden>
+                <div class="combo-options" id="logTeammateOptions" role="listbox" aria-label="Teammates"></div>
+                <div class="combo-footer teammate-add-footer">
+                  <button class="btn btn-small btn-green" id="showAddLogTeammateBtn" type="button">+ Add teammate</button>
+                  <div class="teammate-add-form" id="logTeammateAddForm" hidden>
+                    <input class="input" id="newLogTeammateName" maxlength="50" autocomplete="off" placeholder="Teammate name">
+                    <button class="btn btn-small btn-primary" id="saveLogTeammateBtn" type="button">Save</button>
+                    <button class="link-btn" id="cancelAddLogTeammateBtn" type="button">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="field">
-          <label for="logRestaurant">Restaurant</label>
-          <select class="select" id="logRestaurant" required></select>
+          <label for="logRestaurantButton">Restaurant</label>
+          <div class="restaurant-combobox" id="logRestaurantCombobox">
+            <input id="logRestaurant" type="hidden">
+            <button class="select combo-trigger is-placeholder" id="logRestaurantButton" type="button"
+              aria-haspopup="listbox" aria-expanded="false" aria-controls="logRestaurantMenu">
+              <span id="logRestaurantLabel">Choose a restaurant…</span>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M11.9697 5.46967C12.2626 5.17678 12.7373 5.17678 13.0302 5.46967C13.3231 5.76256 13.3231 6.23732 13.0302 6.53022L8.53022 11.0302C8.23732 11.3231 7.76256 11.3231 7.46967 11.0302L2.96967 6.53022C2.67678 6.23732 2.67678 5.76256 2.96967 5.46967C3.26256 5.17678 3.73732 5.17678 4.03022 5.46967L7.99994 9.4394L11.9697 5.46967Z" fill="#262629"/>
+              </svg>
+            </button>
+            <div class="combo-menu" id="logRestaurantMenu" hidden>
+              <div class="combo-search-wrap">
+                <label class="sr-only" for="logRestaurantSearch">Search restaurants</label>
+                <input class="input" id="logRestaurantSearch" type="search" autocomplete="off" placeholder="Search restaurants or cuisine…">
+              </div>
+              <div class="combo-options" id="logRestaurantOptions" role="listbox" aria-label="Restaurants"></div>
+              <div class="combo-footer">
+                <span>Not on the list?</span>
+                <button class="btn btn-small btn-green" id="logAddRestaurantBtn" type="button">+ Add restaurant</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Personal rating <span style="color:var(--muted)">(optional)</span></label>
+          <input id="logRating" type="hidden">
+          <div class="star-rating-control" id="logRatingControl" role="radiogroup" aria-label="Personal star rating">
+            <button class="star-rating-button" type="button" role="radio" aria-checked="false" aria-label="1 star" data-log-rating="1">★</button>
+            <button class="star-rating-button" type="button" role="radio" aria-checked="false" aria-label="2 stars" data-log-rating="2">★</button>
+            <button class="star-rating-button" type="button" role="radio" aria-checked="false" aria-label="3 stars" data-log-rating="3">★</button>
+            <button class="star-rating-button" type="button" role="radio" aria-checked="false" aria-label="4 stars" data-log-rating="4">★</button>
+            <button class="star-rating-button" type="button" role="radio" aria-checked="false" aria-label="5 stars" data-log-rating="5">★</button>
+            <span class="star-rating-status" id="logRatingStatus">Not rated</span>
+            <button class="clear-rating" id="clearLogRatingBtn" type="button" hidden>Clear</button>
+          </div>
         </div>
         <div class="field">
           <label for="logNotes">Notes <span style="color:var(--muted)">(optional)</span></label>
@@ -1126,7 +2004,7 @@
         </div>
         <div class="modal-actions">
           <button class="btn" type="button" data-close-dialog>Cancel</button>
-          <button class="btn btn-primary" type="submit">Add to lunch log</button>
+          <button class="btn btn-primary" id="saveLogBtn" type="submit">Add to lunch log</button>
         </div>
       </div>
     </form>
@@ -1158,13 +2036,20 @@
     </form>
   </dialog>
 
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="map-card-tooltip" id="mapCardTooltip" role="tooltip" hidden>Add to wheel</div>
+  <div class="toast" id="toast" role="status" aria-live="polite" popover="manual"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     (() => {
       "use strict";
+
+      try {
+        if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+      } catch (error) {
+        // Sandboxed embeds such as Google Sites can deny access to session history.
+      }
 
       const STORAGE_KEY = "austinLunchClub.v1";
       const BACKEND_KEY = "austinLunchClub.backend.v1";
@@ -1176,9 +2061,40 @@
         lng: -97.8006
       };
       const PALETTE = ["#3b2a24", "#d8c8ee", "#c9dfb7", "#5a4035", "#eee7f7", "#b9d39f"];
+      const LOG_ICONS = {
+        add: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path d="M7.25 13V8.75H3C2.58579 8.75 2.25 8.41421 2.25 8C2.25 7.58579 2.58579 7.25 3 7.25H7.25V3C7.25 2.58579 7.58579 2.25 8 2.25C8.41421 2.25 8.75 2.58579 8.75 3V7.25H13C13.4142 7.25 13.75 7.58579 13.75 8C13.75 8.41421 13.4142 8.75 13 8.75H8.75V13C8.75 13.4142 8.41421 13.75 8 13.75C7.58579 13.75 7.25 13.4142 7.25 13Z" fill="currentColor"/></svg>`,
+        check: `<span class="option-check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" focusable="false"><path d="M13.4697 3.46967C13.7626 3.17678 14.2373 3.17678 14.5302 3.46967C14.823 3.76257 14.8231 4.23736 14.5302 4.53022L6.53022 12.5302C6.23736 12.8231 5.76257 12.823 5.46967 12.5302L1.46967 8.53022C1.17678 8.23732 1.17678 7.76256 1.46967 7.46967C1.74427 7.19507 2.17899 7.1776 2.47358 7.41791L2.53022 7.46967L5.99994 10.9394L13.4697 3.46967Z" fill="currentColor"/></svg></span>`,
+        showOnMap: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M11.5 9.7501H7.06596L18.382 5.1231L13.751 16.4341V12.0001C13.751 10.7581 12.743 9.7501 11.501 9.7501H11.5ZM9.24996 12.0001H11.5V20.2501C11.5 20.9671 12.006 21.5811 12.709 21.7221C13.412 21.8631 14.115 21.4831 14.387 20.8171L21.137 4.3171C21.367 3.7591 21.235 3.1171 20.809 2.6901C20.383 2.2631 19.74 2.1321 19.182 2.3621L2.68196 9.1121C2.01596 9.3841 1.64096 10.0871 1.77696 10.7901C1.91296 11.4931 2.53196 11.9991 3.24896 11.9991H9.24896L9.24996 12.0001Z" fill="currentColor"/></svg>`,
+        googleMaps: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M18.75 9C18.75 5.273 15.727 2.25 12 2.25C8.273 2.25 5.25 5.273 5.25 9C5.25 9.581 5.461 10.481 5.967 11.681C6.459 12.844 7.158 14.128 7.959 15.426C9.295 17.592 10.842 19.682 12 21.173C13.163 19.682 14.709 17.592 16.041 15.426C16.843 14.128 17.541 12.843 18.033 11.681C18.539 10.481 18.75 9.581 18.75 9ZM21 9C21 13.097 15.516 20.391 13.111 23.4C12.534 24.117 11.466 24.117 10.889 23.4C8.484 20.391 3 13.097 3 9C3 4.031 7.031 0 12 0C16.969 0 21 4.031 21 9ZM13.5 9C13.5 8.172 12.828 7.5 12 7.5C11.172 7.5 10.5 8.172 10.5 9C10.5 9.828 11.172 10.5 12 10.5C12.828 10.5 13.5 9.828 13.5 9ZM8.25 9C8.25 6.929 9.929 5.25 12 5.25C14.071 5.25 15.75 6.929 15.75 9C15.75 11.071 14.071 12.75 12 12.75C9.929 12.75 8.25 11.071 8.25 9Z" fill="currentColor"/></svg>`,
+        visited: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M18.75 9C18.75 5.273 15.727 2.25 12 2.25C8.273 2.25 5.25 5.273 5.25 9C5.25 9.581 5.461 10.481 5.967 11.681C6.459 12.844 7.158 14.128 7.959 15.426C9.295 17.592 10.842 19.682 12 21.173C13.163 19.682 14.709 17.592 16.041 15.426C16.843 14.128 17.541 12.843 18.033 11.681C18.539 10.481 18.75 9.581 18.75 9ZM21 9C21 13.097 15.516 20.391 13.111 23.4C12.534 24.117 11.466 24.117 10.889 23.4C8.484 20.391 3 13.097 3 9C3 4.031 7.031 0 12 0C16.969 0 21 4.031 21 9ZM16.547 8.044L11.545 13.046C11.104 13.487 10.392 13.487 9.956 13.046L7.453 10.548C7.012 10.107 7.012 9.395 7.453 8.959C7.894 8.523 8.606 8.518 9.042 8.959L10.748 10.665L14.953 6.456C15.394 6.015 16.106 6.015 16.542 6.456C16.978 6.897 16.983 7.609 16.542 8.045L16.547 8.044Z" fill="currentColor"/></svg>`,
+        map: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M12 0C12.623 0 13.125 0.502 13.125 1.125V1.936C17.817 2.456 21.544 6.183 22.064 10.875H22.875C23.498 10.875 24 11.377 24 12C24 12.623 23.498 13.125 22.875 13.125H22.064C21.544 17.817 17.817 21.544 13.125 22.064V22.875C13.125 23.498 12.623 24 12 24C11.377 24 10.875 23.498 10.875 22.875V22.064C6.183 21.544 2.456 17.817 1.936 13.125H1.125C0.502 13.125 0 12.623 0 12C0 11.377 0.502 10.875 1.125 10.875H1.936C2.456 6.183 6.183 2.456 10.875 1.936V1.125C10.875 0.502 11.377 0 12 0ZM4.205 13.125C4.697 16.575 7.425 19.303 10.875 19.795V18.375C10.875 17.752 11.377 17.25 12 17.25C12.623 17.25 13.125 17.752 13.125 18.375V19.795C16.575 19.303 19.303 16.575 19.795 13.125H18.375C17.752 13.125 17.25 12.623 17.25 12C17.25 11.377 17.752 10.875 18.375 10.875H19.795C19.303 7.425 16.575 4.697 13.125 4.205V5.625C13.125 6.248 12.623 6.75 12 6.75C11.377 6.75 10.875 6.248 10.875 5.625V4.205C7.425 4.697 4.697 7.425 4.205 10.875H5.625C6.248 10.875 6.75 11.377 6.75 12C6.75 12.623 6.248 13.125 5.625 13.125H4.205ZM12 10.5C12.828 10.5 13.5 11.172 13.5 12C13.5 12.828 12.828 13.5 12 13.5C11.172 13.5 10.5 12.828 10.5 12C10.5 11.172 11.172 10.5 12 10.5Z" fill="currentColor"/></svg>`,
+        edit: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.0125 1.51249C10.6959 0.82917 11.8037 0.829171 12.4871 1.51249L14.073 3.09843C14.756 3.78185 14.7562 4.88976 14.073 5.57303L6.28007 13.366C6.18401 13.462 6.06321 13.5303 5.93144 13.5633L1.93144 14.5633C1.67613 14.627 1.40573 14.5519 1.21952 14.366C1.03343 14.1799 0.958676 13.9095 1.02226 13.6541L2.02226 9.65409L2.05351 9.55741C2.09109 9.46339 2.14744 9.37756 2.21952 9.30546L10.0125 1.51249ZM3.42655 10.2185L3.07987 11.6053L3.97929 12.5047L5.36601 12.158L5.4998 12.0252V11.8767L4.51249 11.5476C4.28869 11.473 4.11262 11.2968 4.03788 11.073L3.70878 10.0857H3.56034L3.42655 10.2185ZM4.80741 8.83768C4.87395 8.91222 4.92872 8.99945 4.96171 9.09842L5.34257 10.242L6.4871 10.6238C6.58562 10.6567 6.67256 10.711 6.74687 10.7771L11.1892 6.33573L9.2498 4.39628L4.80741 8.83768ZM11.4266 2.57303C11.3289 2.4755 11.1706 2.4755 11.073 2.57303L10.3103 3.33573L12.2498 5.27518L13.0125 4.51249C13.1099 4.415 13.1097 4.25661 13.0125 4.15897L11.4266 2.57303Z" fill="currentColor"/></svg>`,
+        remove: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path d="M9.46973 5.46973C9.76263 5.17687 10.2374 5.17685 10.5303 5.46973C10.8231 5.76263 10.8231 6.23742 10.5303 6.53027L9.06055 8L10.5303 9.46973L10.582 9.52637C10.8223 9.82095 10.8049 10.2557 10.5303 10.5303C10.2557 10.8049 9.82095 10.8223 9.52637 10.582L9.46973 10.5303L8 9.06055L6.53027 10.5303C6.23742 10.8231 5.76263 10.8231 5.46973 10.5303C5.17685 10.2374 5.17687 9.76263 5.46973 9.46973L6.93945 8L5.46973 6.53027C5.17683 6.23738 5.17683 5.76262 5.46973 5.46973C5.76262 5.17683 6.23738 5.17683 6.53027 5.46973L8 6.93945L9.46973 5.46973Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1ZM8 2.5C4.96243 2.5 2.5 4.96243 2.5 8C2.5 11.0376 4.96243 13.5 8 13.5C11.0376 13.5 13.5 11.0376 13.5 8C13.5 4.96243 11.0376 2.5 8 2.5Z" fill="currentColor"/></svg>`,
+        person: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path fill-rule="evenodd" clip-rule="evenodd" d="M8.16733 2.25C10.0539 2.2505 11.5833 3.78033 11.5833 5.66699C11.5833 6.58509 11.22 7.57228 10.6546 8.33301C10.586 8.42538 10.5115 8.51588 10.4339 8.60449C12.6065 9.25559 14.4764 10.8208 14.724 13.4287C14.7962 14.1898 14.1707 14.7497 13.5003 14.75H2.50034C1.82973 14.75 1.20444 14.19 1.27671 13.4287L1.31772 13.1006C1.70073 10.5852 3.64343 9.10242 5.8353 8.52734C5.78157 8.46304 5.72817 8.39907 5.67905 8.33301C5.11367 7.57227 4.75042 6.58514 4.75034 5.66699C4.75034 3.78002 6.28036 2.25 8.16733 2.25ZM8.00034 9.75C5.45573 9.75 3.21337 11.0099 2.81577 13.25H13.1849C12.7874 11.01 10.5447 9.7502 8.00034 9.75ZM8.16733 3.75C7.10878 3.75 6.25034 4.60845 6.25034 5.66699C6.25043 6.22136 6.48362 6.90096 6.88315 7.43848C7.28827 7.98334 7.75835 8.25 8.16733 8.25C8.57613 8.2496 9.0457 7.98302 9.45053 7.43848C9.84993 6.90101 10.0833 6.22127 10.0833 5.66699C10.0833 4.60875 9.22545 3.7505 8.16733 3.75Z" fill="currentColor"/></svg>`,
+        rating: `<svg width="16" height="16" viewBox="0 0 25 24" fill="none" aria-hidden="true" focusable="false"><path d="M13.3833 0.633C13.1953 0.244 12.8023 0 12.3703 0C11.9383 0 11.5453 0.244 11.3573 0.633L8.1413 7.256L0.960298 8.32C0.538298 8.381 0.187297 8.676 0.0552974 9.084C-0.0767026 9.492 0.0322975 9.932 0.332298 10.232L5.5403 15.393L4.3123 22.682C4.2423 23.104 4.4153 23.53 4.7673 23.784C5.1193 24.038 5.5783 24.065 5.9533 23.864L12.3753 20.433L18.7973 23.864C19.1773 24.066 19.6363 24.037 19.9833 23.784C20.3303 23.531 20.5083 23.104 20.4383 22.682L19.2013 15.393L24.4133 10.227C24.7183 9.927 24.8213 9.482 24.6903 9.079C24.5593 8.676 24.2073 8.381 23.7853 8.315L16.5993 7.256L13.3833 0.633ZM12.3753 18.033V3.708L14.8363 8.775C15.0003 9.108 15.3143 9.342 15.6843 9.398L21.2293 10.218L17.2023 14.202C16.9443 14.46 16.8223 14.825 16.8833 15.186L17.8303 20.792L12.8993 18.162C12.7353 18.073 12.5523 18.031 12.3743 18.031L12.3753 18.033Z" fill="currentColor"/></svg>`,
+        note: `<svg width="16" height="16" viewBox="0 0 25 24" fill="none" aria-hidden="true" focusable="false"><path d="M7.884 18.042C7.181 17.789 6.398 17.897 5.793 18.342C5.409 18.623 4.748 19.036 3.946 19.406C4.209 18.717 4.41 17.939 4.476 17.09C4.523 16.485 4.321 15.885 3.923 15.426C2.831 14.193 2.25 12.749 2.25 11.249C2.25 7.522 6.155 3.749 12 3.749C17.845 3.749 21.75 7.522 21.75 11.249C21.75 14.976 17.845 18.749 12 18.749C10.519 18.749 9.127 18.492 7.884 18.042ZM1.233 19.866C1.158 19.993 1.078 20.119 0.994 20.246L0.98 20.269C0.905 20.377 0.83 20.485 0.755 20.592C0.591 20.812 0.413 21.028 0.225 21.225C0.00899999 21.441 -0.052 21.759 0.066 22.041C0.184 22.323 0.455 22.505 0.76 22.505C0.999 22.505 1.238 22.491 1.477 22.467L1.51 22.462C1.716 22.439 1.922 22.41 2.129 22.373C2.167 22.368 2.204 22.359 2.241 22.35C3.075 22.186 3.877 21.905 4.589 21.595C5.662 21.126 6.576 20.568 7.134 20.161C8.625 20.7 10.275 21 12.014 21C18.642 21 24.014 16.636 24.014 11.25C24.014 5.864 18.628 1.5 12 1.5C5.372 1.5 0 5.864 0 11.25C0 13.364 0.83 15.319 2.236 16.917C2.147 18.065 1.702 19.088 1.233 19.866ZM6.75 12.75C7.578 12.75 8.25 12.078 8.25 11.25C8.25 10.422 7.578 9.75 6.75 9.75C5.922 9.75 5.25 10.422 5.25 11.25C5.25 12.078 5.922 12.75 6.75 12.75ZM13.5 11.25C13.5 10.422 12.828 9.75 12 9.75C11.172 9.75 10.5 10.422 10.5 11.25C10.5 12.078 11.172 12.75 12 12.75C12.828 12.75 13.5 12.078 13.5 11.25ZM17.25 12.75C18.078 12.75 18.75 12.078 18.75 11.25C18.75 10.422 18.078 9.75 17.25 9.75C16.422 9.75 15.75 10.422 15.75 11.25C15.75 12.078 16.422 12.75 17.25 12.75Z" fill="currentColor"/></svg>`
+      };
       const CATEGORIES = [
         "BBQ", "Asian", "Indian", "Vegetarian / Vegan", "Burgers", "Chicken / Wings",
         "Seafood", "Mexican / Tacos", "Pizza", "Sandwiches", "Diner / American", "Other"
+      ];
+      const DEFAULT_TEAMMATES = [
+        { id: "teammate-tyson", name: "Tyson", createdAt: 0 },
+        { id: "teammate-amith", name: "Amith", createdAt: 0 },
+        { id: "teammate-aghalya", name: "Aghalya", createdAt: 0 },
+        { id: "teammate-srinivas", name: "Srinivas", createdAt: 0 },
+        { id: "teammate-abhishek", name: "Abhishek", createdAt: 0 },
+        { id: "teammate-aditya-c", name: "Aditya C", createdAt: 0 },
+        { id: "teammate-aditya-s", name: "Aditya S", createdAt: 0 },
+        { id: "teammate-avantika", name: "Avantika", createdAt: 0 },
+        { id: "teammate-chirag", name: "Chirag", createdAt: 0 },
+        { id: "teammate-hung", name: "Hung", createdAt: 0 },
+        { id: "teammate-pratyush", name: "Pratyush", createdAt: 0 },
+        { id: "teammate-rohit", name: "Rohit", createdAt: 0 },
+        { id: "teammate-sethu", name: "Sethu", createdAt: 0 },
+        { id: "teammate-siddharth", name: "Siddharth", createdAt: 0 },
+        { id: "teammate-soham", name: "Soham", createdAt: 0 },
+        { id: "teammate-william", name: "William", createdAt: 0 }
       ];
       const DEFAULT_RESTAURANTS = [
         ["Terry Black’s Barbecue", "BBQ"],
@@ -1277,9 +2193,31 @@
         restaurantList: document.getElementById("restaurantList"),
         restaurantSearch: document.getElementById("restaurantSearch"),
         categoryFilter: document.getElementById("categoryFilter"),
+        categoryFilterCombobox: document.getElementById("categoryFilterCombobox"),
+        categoryFilterButton: document.getElementById("categoryFilterButton"),
+        categoryFilterLabel: document.getElementById("categoryFilterLabel"),
+        categoryFilterMenu: document.getElementById("categoryFilterMenu"),
+        categoryFilterOptions: document.getElementById("categoryFilterOptions"),
         restaurantSelect: document.getElementById("restaurantSelect"),
+        restaurantSelectButton: document.getElementById("restaurantSelectButton"),
+        restaurantSelectLabel: document.getElementById("restaurantSelectLabel"),
+        restaurantSelectMenu: document.getElementById("restaurantSelectMenu"),
+        restaurantSelectSearch: document.getElementById("restaurantSelectSearch"),
+        restaurantSelectOptions: document.getElementById("restaurantSelectOptions"),
+        wheelAddRestaurantBtn: document.getElementById("wheelAddRestaurantBtn"),
+        wheelRestaurantCombobox: document.getElementById("wheelRestaurantCombobox"),
         pickForm: document.getElementById("pickForm"),
         pickerName: document.getElementById("pickerName"),
+        teammateCombobox: document.getElementById("teammateCombobox"),
+        teammateSelectButton: document.getElementById("teammateSelectButton"),
+        teammateSelectLabel: document.getElementById("teammateSelectLabel"),
+        teammateSelectMenu: document.getElementById("teammateSelectMenu"),
+        teammateSelectOptions: document.getElementById("teammateSelectOptions"),
+        showAddTeammateBtn: document.getElementById("showAddTeammateBtn"),
+        teammateAddForm: document.getElementById("teammateAddForm"),
+        newTeammateName: document.getElementById("newTeammateName"),
+        saveTeammateBtn: document.getElementById("saveTeammateBtn"),
+        cancelAddTeammateBtn: document.getElementById("cancelAddTeammateBtn"),
         pickChips: document.getElementById("pickChips"),
         picksLabel: document.getElementById("picksLabel"),
         clearPicksBtn: document.getElementById("clearPicksBtn"),
@@ -1290,6 +2228,7 @@
         winnerPerson: document.getElementById("winnerPerson"),
         saveWinnerBtn: document.getElementById("saveWinnerBtn"),
         lunchDate: document.getElementById("lunchDate"),
+        lunchDateDisplay: document.getElementById("lunchDateDisplay"),
         leaderList: document.getElementById("leaderList"),
         historyList: document.getElementById("historyList"),
         restaurantDialog: document.getElementById("restaurantDialog"),
@@ -1298,20 +2237,60 @@
         editingRestaurantId: document.getElementById("editingRestaurantId"),
         restaurantNameInput: document.getElementById("restaurantNameInput"),
         restaurantCategoryInput: document.getElementById("restaurantCategoryInput"),
+        restaurantCategoryCombobox: document.getElementById("restaurantCategoryCombobox"),
+        restaurantCategoryButton: document.getElementById("restaurantCategoryButton"),
+        restaurantCategoryLabel: document.getElementById("restaurantCategoryLabel"),
+        restaurantCategoryMenu: document.getElementById("restaurantCategoryMenu"),
+        restaurantCategoryOptions: document.getElementById("restaurantCategoryOptions"),
         restaurantAddressInput: document.getElementById("restaurantAddressInput"),
         restaurantRatingInput: document.getElementById("restaurantRatingInput"),
         deleteRestaurantBtn: document.getElementById("deleteRestaurantBtn"),
         logDialog: document.getElementById("logDialog"),
         logForm: document.getElementById("logForm"),
+        logModalTitle: document.getElementById("logModalTitle"),
+        editingLogId: document.getElementById("editingLogId"),
         logDate: document.getElementById("logDate"),
+        logDatePicker: document.getElementById("logDatePicker"),
+        logDateButton: document.getElementById("logDateButton"),
+        logDateLabel: document.getElementById("logDateLabel"),
+        logDateMenu: document.getElementById("logDateMenu"),
+        logDateMonth: document.getElementById("logDateMonth"),
+        logDateDays: document.getElementById("logDateDays"),
+        logDatePreviousMonth: document.getElementById("logDatePreviousMonth"),
+        logDateNextMonth: document.getElementById("logDateNextMonth"),
         logPerson: document.getElementById("logPerson"),
+        logTeammateCombobox: document.getElementById("logTeammateCombobox"),
+        logTeammateButton: document.getElementById("logTeammateButton"),
+        logTeammateLabel: document.getElementById("logTeammateLabel"),
+        logTeammateMenu: document.getElementById("logTeammateMenu"),
+        logTeammateOptions: document.getElementById("logTeammateOptions"),
+        showAddLogTeammateBtn: document.getElementById("showAddLogTeammateBtn"),
+        logTeammateAddForm: document.getElementById("logTeammateAddForm"),
+        newLogTeammateName: document.getElementById("newLogTeammateName"),
+        saveLogTeammateBtn: document.getElementById("saveLogTeammateBtn"),
+        cancelAddLogTeammateBtn: document.getElementById("cancelAddLogTeammateBtn"),
         logRestaurant: document.getElementById("logRestaurant"),
+        logRestaurantCombobox: document.getElementById("logRestaurantCombobox"),
+        logRestaurantButton: document.getElementById("logRestaurantButton"),
+        logRestaurantLabel: document.getElementById("logRestaurantLabel"),
+        logRestaurantMenu: document.getElementById("logRestaurantMenu"),
+        logRestaurantSearch: document.getElementById("logRestaurantSearch"),
+        logRestaurantOptions: document.getElementById("logRestaurantOptions"),
+        logAddRestaurantBtn: document.getElementById("logAddRestaurantBtn"),
+        logRating: document.getElementById("logRating"),
+        logRatingControl: document.getElementById("logRatingControl"),
+        logRatingStatus: document.getElementById("logRatingStatus"),
+        clearLogRatingBtn: document.getElementById("clearLogRatingBtn"),
         logNotes: document.getElementById("logNotes"),
+        saveLogBtn: document.getElementById("saveLogBtn"),
         routeTime: document.getElementById("routeTime"),
         routeDistance: document.getElementById("routeDistance"),
         routeDestination: document.getElementById("routeDestination"),
         routeNote: document.getElementById("routeNote"),
         googleDirectionsLink: document.getElementById("googleDirectionsLink"),
+        mapZoomInBtn: document.getElementById("mapZoomInBtn"),
+        mapZoomOutBtn: document.getElementById("mapZoomOutBtn"),
+        mapOfficeBtn: document.getElementById("mapOfficeBtn"),
         mapFallback: document.getElementById("mapFallback"),
         toast: document.getElementById("toast"),
         importInput: document.getElementById("importInput"),
@@ -1323,8 +2302,17 @@
         backendUrl: document.getElementById("backendUrl"),
         connectBackendBtn: document.getElementById("connectBackendBtn"),
         disconnectBackendBtn: document.getElementById("disconnectBackendBtn"),
+        mapExperience: document.querySelector(".map-experience"),
         mapRestaurantList: document.getElementById("mapRestaurantList"),
         mapRestaurantSearch: document.getElementById("mapRestaurantSearch"),
+        mapCardTooltip: document.getElementById("mapCardTooltip"),
+        mapFilterControl: document.getElementById("mapFilterControl"),
+        mapFilterBtn: document.getElementById("mapFilterBtn"),
+        mapFilterMenu: document.getElementById("mapFilterMenu"),
+        mapSortOptions: document.getElementById("mapSortOptions"),
+        mapCuisineOptions: document.getElementById("mapCuisineOptions"),
+        clearMapFiltersBtn: document.getElementById("clearMapFiltersBtn"),
+        mapAddRestaurantBtn: document.getElementById("mapAddRestaurantBtn"),
         wheelPanel: document.getElementById("wheelPanel"),
         wheelDropZone: document.getElementById("wheelDropZone"),
         minimizeWheelBtn: document.getElementById("minimizeWheelBtn"),
@@ -1348,6 +2336,15 @@
       let lastCloudPull = 0;
       let activeRestaurantId = "";
       let routeLoadingId = "";
+      let mapSortOrder = "name";
+      let mapCuisineFilters = new Set();
+      let categoryFilters = new Set();
+      let restaurantDialogReturnsToLog = false;
+      let restaurantDialogReturnsToWheel = false;
+      let restaurantDialogReturnsToMap = false;
+      let pendingLogDraft = null;
+      let logCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      let categoryChoices = [];
 
       function uid(prefix) {
         if (window.crypto && crypto.randomUUID) return `${prefix}-${crypto.randomUUID()}`;
@@ -1359,15 +2356,39 @@
           const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
           if (saved && Array.isArray(saved.restaurants) && Array.isArray(saved.picks) && Array.isArray(saved.logs)) {
             saved.pendingOps = Array.isArray(saved.pendingOps) ? saved.pendingOps : [];
+            saved.teammates = mergeTeammates(saved.teammates);
             saved.restaurants.forEach(restaurant => {
               restaurant.rating = normalizeRating(restaurant.rating);
+            });
+            saved.logs.forEach(log => {
+              log.rating = normalizeRating(log.rating);
             });
             return saved;
           }
         } catch (error) {
           console.warn("Could not load saved lunch club data.", error);
         }
-        return { restaurants: DEFAULT_RESTAURANTS, picks: [], logs: [], pendingOps: [] };
+        return {
+          restaurants: DEFAULT_RESTAURANTS,
+          picks: [],
+          logs: [],
+          teammates: mergeTeammates([]),
+          pendingOps: []
+        };
+      }
+
+      function mergeTeammates(teammates) {
+        const merged = [];
+        [...DEFAULT_TEAMMATES, ...(Array.isArray(teammates) ? teammates : [])].forEach(teammate => {
+          const name = String(teammate && teammate.name || "").trim();
+          if (!name || merged.some(item => normalize(item.name) === normalize(name))) return;
+          merged.push({
+            id: String(teammate.id || uid("teammate")),
+            name,
+            createdAt: Number(teammate.createdAt) || 0
+          });
+        });
+        return merged;
       }
 
       function saveState() {
@@ -1376,7 +2397,7 @@
 
       function normalizeRating(value) {
         const rating = Number(value);
-        return Number.isFinite(rating) && rating >= 1 && rating <= 5 ? Math.round(rating * 10) / 10 : "";
+        return Number.isFinite(rating) && rating >= .5 && rating <= 5 ? Math.round(rating * 10) / 10 : "";
       }
 
       function loadRouteCache() {
@@ -1393,7 +2414,13 @@
       }
 
       function routeFingerprint(restaurant) {
-        return `${restaurant.name}|${restaurant.address || ""}`;
+        return [
+          restaurant.name,
+          restaurant.address || "",
+          restaurant.googleAddress || "",
+          restaurant.latitude == null ? "" : restaurant.latitude,
+          restaurant.longitude == null ? "" : restaurant.longitude
+        ].join("|");
       }
 
       function cachedRouteFor(restaurant) {
@@ -1411,7 +2438,7 @@
 
       function normalizeBackendUrl(value) {
         const url = String(value || "").trim();
-        if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(url)) {
+        if (!/^https:\/\/script\.google\.com\/(?:macros\/s|a\/macros\/[^/]+\/s)\/[^/]+\/exec(?:\?.*)?$/.test(url)) {
           throw new Error("Paste the Apps Script web app URL ending in /exec.");
         }
         return url;
@@ -1427,15 +2454,15 @@
         els.syncStatus.dataset.state = status;
         els.syncStatus.textContent = labels[status] || labels.local;
         els.syncStatus.title = detail || (status === "synced"
-          ? "Restaurants and lunch history are shared through Google Sheets."
+          ? "Restaurants, teammates, and lunch history are shared through Google Sheets."
           : "Configure shared Google Sheets data.");
         els.syncSettingsBtn.textContent = backendUrl ? "Shared data settings" : "Connect shared data";
         els.storageNote.textContent = backendUrl
-          ? "Restaurants, lunch history, and the leaderboard sync through Google Sheets. Friday wheel picks stay in this browser."
+          ? "Restaurants, teammates, lunch history, and the leaderboard sync through Google Sheets. Friday wheel picks stay in this browser."
           : "Wheel picks stay in this browser. Connect Google Sheets to share restaurants, history, and the leaderboard.";
       }
 
-      async function cloudGet(url = backendUrl) {
+      function cloudJsonp(url, parameters = {}, timeoutMessage = "The shared Sheet did not respond.") {
         if (!url) throw new Error("Shared data is not configured.");
         return new Promise((resolve, reject) => {
           const callbackName = `__austinLunchClub_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -1448,7 +2475,7 @@
           };
           const timeout = setTimeout(() => {
             cleanup();
-            reject(new Error("The shared Sheet did not respond. Check the deployment URL and access setting."));
+            reject(new Error(timeoutMessage));
           }, 15000);
           window[callbackName] = payload => {
             cleanup();
@@ -1462,20 +2489,53 @@
             cleanup();
             reject(new Error("Could not load shared data from Google Apps Script."));
           };
-          script.src = `${url}${separator}callback=${encodeURIComponent(callbackName)}&t=${Date.now()}`;
+          const query = Object.entries({
+            ...parameters,
+            callback: callbackName,
+            t: Date.now()
+          }).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`).join("&");
+          script.src = `${url}${separator}${query}`;
           document.head.appendChild(script);
         });
       }
 
+      async function cloudGet(url = backendUrl) {
+        return cloudJsonp(
+          url,
+          {},
+          "The shared Sheet did not respond. Check the deployment URL and access setting."
+        );
+      }
+
       async function cloudPost(action, data, url = backendUrl) {
         if (!url) throw new Error("Shared data is not configured.");
-        await fetch(url, {
-          method: "POST",
-          mode: "no-cors",
-          body: JSON.stringify({ action, data }),
-          redirect: "follow"
-        });
-        return { ok: true };
+        if (action === "seedRestaurants" && Array.isArray(data.restaurants) && data.restaurants.length > 8) {
+          for (let index = 0; index < data.restaurants.length; index += 8) {
+            await cloudPost(action, { restaurants: data.restaurants.slice(index, index + 8) }, url);
+          }
+          return { ok: true };
+        }
+        if (action === "seedLogs" && Array.isArray(data.logs) && data.logs.length > 8) {
+          for (let index = 0; index < data.logs.length; index += 8) {
+            await cloudPost(action, { logs: data.logs.slice(index, index + 8) }, url);
+          }
+          return { ok: true };
+        }
+        if (action === "seedTeammates" && Array.isArray(data.teammates) && data.teammates.length > 8) {
+          for (let index = 0; index < data.teammates.length; index += 8) {
+            await cloudPost(action, { teammates: data.teammates.slice(index, index + 8) }, url);
+          }
+          return { ok: true };
+        }
+        const response = await cloudJsonp(
+          url,
+          { payload: JSON.stringify({ action, data }) },
+          "The shared Sheet did not confirm the save. It remains queued in this browser."
+        );
+        if (!Object.prototype.hasOwnProperty.call(response, "result")) {
+          throw new Error("The Apps Script deployment is outdated. Deploy a new Code.gs version; this save remains queued.");
+        }
+        return response;
       }
 
       function queueCloudOp(action, data) {
@@ -1520,7 +2580,11 @@
           ...restaurant,
           rating: normalizeRating(restaurant.rating)
         }));
-        state.logs = payload.logs;
+        state.logs = payload.logs.map(log => ({
+          ...log,
+          rating: normalizeRating(log.rating)
+        }));
+        state.teammates = mergeTeammates(Array.isArray(payload.teammates) ? payload.teammates : state.teammates);
         state.picks = state.picks.filter(pick => state.restaurants.some(restaurant => restaurant.id === pick.restaurantId));
         saveState();
         renderAll();
@@ -1550,6 +2614,7 @@
         await cloudGet(normalizedUrl);
         await cloudPost("seedRestaurants", { restaurants: state.restaurants }, normalizedUrl);
         await cloudPost("seedLogs", { logs: state.logs }, normalizedUrl);
+        await cloudPost("seedTeammates", { teammates: state.teammates }, normalizedUrl);
         const payload = await cloudGet(normalizedUrl);
         backendUrl = normalizedUrl;
         localStorage.setItem(BACKEND_KEY, backendUrl);
@@ -1582,6 +2647,13 @@
         return /^https:\/\/([a-z0-9-]+\.)*google\.[a-z.]+\//i.test(url) ? url : "";
       }
 
+      function googleMapsRestaurantUrl(restaurant) {
+        const savedUrl = safeGoogleMapsUrl(restaurant.googleMapsUrl);
+        if (savedUrl) return savedUrl;
+        const location = restaurant.googleAddress || restaurant.address || "Austin, TX";
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${restaurant.name}, ${location}`)}`;
+      }
+
       function formatReviewCount(value) {
         const count = Number(value) || 0;
         return count ? new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(count) : "";
@@ -1609,6 +2681,78 @@
         return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
       }
 
+      function parseLocalDate(value) {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
+        if (!match) return null;
+        const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        return date.getFullYear() === Number(match[1]) &&
+          date.getMonth() === Number(match[2]) - 1 &&
+          date.getDate() === Number(match[3])
+          ? date
+          : null;
+      }
+
+      function setLogDate(value) {
+        const date = parseLocalDate(value) || parseLocalDate(upcomingFriday());
+        const dateValue = localDateValue(date);
+        els.logDate.value = dateValue;
+        els.logDateButton.classList.remove("is-placeholder");
+        els.logDateLabel.textContent = date.toLocaleDateString(undefined, {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          year: "numeric"
+        });
+        logCalendarMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        renderLogDateCalendar();
+      }
+
+      function renderLogDateCalendar() {
+        const year = logCalendarMonth.getFullYear();
+        const month = logCalendarMonth.getMonth();
+        const firstWeekday = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const selected = els.logDate.value;
+        const today = localDateValue(new Date());
+        els.logDateMonth.textContent = logCalendarMonth.toLocaleDateString(undefined, {
+          month: "long",
+          year: "numeric"
+        });
+        const cells = Array.from({ length: firstWeekday }, () =>
+          `<span class="date-day-placeholder" aria-hidden="true"></span>`
+        );
+        for (let day = 1; day <= daysInMonth; day += 1) {
+          const date = new Date(year, month, day);
+          const value = localDateValue(date);
+          const label = date.toLocaleDateString(undefined, {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            year: "numeric"
+          });
+          cells.push(`
+            <button class="date-day${value === today ? " is-today" : ""}" type="button" role="gridcell"
+              aria-label="${escapeHTML(label)}" aria-selected="${value === selected}"
+              data-log-date="${value}">${day}</button>
+          `);
+        }
+        els.logDateDays.innerHTML = cells.join("");
+      }
+
+      function setLogDateMenu(open) {
+        els.logDateMenu.hidden = !open;
+        els.logDateButton.setAttribute("aria-expanded", String(open));
+        if (open) {
+          const selected = parseLocalDate(els.logDate.value);
+          if (selected) logCalendarMonth = new Date(selected.getFullYear(), selected.getMonth(), 1);
+          renderLogDateCalendar();
+          requestAnimationFrame(() => {
+            const selectedDay = els.logDateDays.querySelector('[aria-selected="true"]');
+            if (selectedDay) selectedDay.focus();
+          });
+        }
+      }
+
       function restaurantById(id) {
         return state.restaurants.find(restaurant => restaurant.id === id);
       }
@@ -1618,41 +2762,266 @@
       }
 
       function showToast(message) {
+        const openDialogs = [...document.querySelectorAll("dialog[open]")];
+        const host = openDialogs[openDialogs.length - 1] || document.body;
+        if (els.toast.parentElement !== host) {
+          if (typeof els.toast.hidePopover === "function" && els.toast.matches(":popover-open")) {
+            els.toast.hidePopover();
+          }
+          host.appendChild(els.toast);
+        }
         els.toast.textContent = message;
-        els.toast.classList.add("show");
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => els.toast.classList.remove("show"), 2800);
+        if (typeof els.toast.showPopover === "function" && !els.toast.matches(":popover-open")) {
+          els.toast.showPopover();
+        }
+        requestAnimationFrame(() => els.toast.classList.add("show"));
+        toastTimer = setTimeout(() => {
+          els.toast.classList.remove("show");
+          if (typeof els.toast.hidePopover === "function" && els.toast.matches(":popover-open")) {
+            els.toast.hidePopover();
+          }
+          if (els.toast.parentElement !== document.body) document.body.appendChild(els.toast);
+        }, 6000);
       }
 
       function populateCategories() {
-        const present = [...new Set([...CATEGORIES, ...state.restaurants.map(item => item.category).filter(Boolean)])]
+        categoryChoices = [...new Set([...CATEGORIES, ...state.restaurants.map(item => item.category).filter(Boolean)])]
           .sort((a, b) => a.localeCompare(b));
-        const current = els.categoryFilter.value;
-        els.categoryFilter.innerHTML = `<option value="">All food types</option>${present.map(category =>
-          `<option value="${escapeHTML(category)}">${escapeHTML(category)}</option>`).join("")}`;
-        els.categoryFilter.value = present.includes(current) ? current : "";
-        document.getElementById("categoryOptions").innerHTML = present.map(category =>
-          `<option value="${escapeHTML(category)}"></option>`).join("");
+        [...categoryFilters].forEach(category => {
+          if (!categoryChoices.includes(category)) categoryFilters.delete(category);
+        });
+        updateCategoryFilters();
+        renderRestaurantCategoryOptions();
       }
 
       function renderRestaurantOptions() {
-        const options = sortedRestaurants().map(restaurant =>
-          `<option value="${escapeHTML(restaurant.id)}">${escapeHTML(restaurant.name)} · ${escapeHTML(restaurant.category)}</option>`
-        ).join("");
         const pickValue = els.restaurantSelect.value;
         const logValue = els.logRestaurant.value;
-        els.restaurantSelect.innerHTML = `<option value="">Choose a restaurant…</option>${options}`;
-        els.logRestaurant.innerHTML = `<option value="">Choose a restaurant…</option>${options}`;
-        if (state.restaurants.some(item => item.id === pickValue)) els.restaurantSelect.value = pickValue;
-        if (state.restaurants.some(item => item.id === logValue)) els.logRestaurant.value = logValue;
+        setWheelRestaurant(state.restaurants.some(item => item.id === pickValue) ? pickValue : "");
+        setLogRestaurant(state.restaurants.some(item => item.id === logValue) ? logValue : "");
+      }
+
+      function updateCategoryFilters() {
+        els.categoryFilter.value = JSON.stringify([...categoryFilters]);
+        els.categoryFilterLabel.textContent = categoryFilters.size === 0
+          ? "All food types"
+          : categoryFilters.size === 1
+            ? [...categoryFilters][0]
+            : `${categoryFilters.size} food types`;
+        renderCategoryFilterOptions();
+      }
+
+      function renderCategoryFilterOptions() {
+        const options = [{ value: "", label: "All food types" }].concat(
+          categoryChoices.map(category => ({ value: category, label: category }))
+        );
+        els.categoryFilterOptions.innerHTML = options.map(option => `
+          <button class="combo-option" type="button" role="option"
+            aria-selected="${option.value ? categoryFilters.has(option.value) : categoryFilters.size === 0}"
+            data-category-filter="${escapeHTML(option.value)}">
+            <strong>${escapeHTML(option.label)}</strong>
+            ${(option.value ? categoryFilters.has(option.value) : categoryFilters.size === 0) ? LOG_ICONS.check : ""}
+          </button>
+        `).join("");
+      }
+
+      function setCategoryFilterMenu(open) {
+        els.categoryFilterMenu.hidden = !open;
+        els.categoryFilterButton.setAttribute("aria-expanded", String(open));
+      }
+
+      function setRestaurantCategory(value) {
+        const category = categoryChoices.find(item => normalize(item) === normalize(value)) || String(value || "").trim();
+        els.restaurantCategoryInput.value = category;
+        els.restaurantCategoryButton.classList.toggle("is-placeholder", !category);
+        els.restaurantCategoryLabel.textContent = category || "Choose a food type…";
+        renderRestaurantCategoryOptions();
+      }
+
+      function renderRestaurantCategoryOptions() {
+        const selected = els.restaurantCategoryInput.value;
+        const options = selected && !categoryChoices.includes(selected)
+          ? [...categoryChoices, selected].sort((a, b) => a.localeCompare(b))
+          : categoryChoices;
+        els.restaurantCategoryOptions.innerHTML = options.map(category => `
+          <button class="combo-option" type="button" role="option"
+            aria-selected="${normalize(category) === normalize(selected)}"
+            data-restaurant-category="${escapeHTML(category)}">
+            <strong>${escapeHTML(category)}</strong>
+          </button>
+        `).join("");
+      }
+
+      function setRestaurantCategoryMenu(open) {
+        els.restaurantCategoryMenu.hidden = !open;
+        els.restaurantCategoryButton.setAttribute("aria-expanded", String(open));
+        if (open) renderRestaurantCategoryOptions();
+      }
+
+      function setWheelRestaurant(id) {
+        const restaurant = restaurantById(id);
+        els.restaurantSelect.value = restaurant ? restaurant.id : "";
+        els.restaurantSelectButton.classList.toggle("is-placeholder", !restaurant);
+        els.restaurantSelectLabel.textContent = restaurant ? restaurant.name : "Choose a restaurant…";
+        renderWheelRestaurantOptions();
+      }
+
+      function renderWheelRestaurantOptions() {
+        const search = normalize(els.restaurantSelectSearch.value);
+        const matches = sortedRestaurants().filter(restaurant =>
+          !search || normalize(`${restaurant.name} ${restaurant.category} ${restaurant.address}`).includes(search)
+        );
+        if (!matches.length) {
+          els.restaurantSelectOptions.innerHTML = `<div class="combo-no-results">No matching restaurants.</div>`;
+          return;
+        }
+        els.restaurantSelectOptions.innerHTML = matches.map(restaurant => `
+          <button class="combo-option" type="button" role="option"
+            aria-selected="${restaurant.id === els.restaurantSelect.value}"
+            data-wheel-restaurant="${escapeHTML(restaurant.id)}">
+            <strong>${escapeHTML(restaurant.name)}</strong>
+            <small>${escapeHTML(restaurant.category)}</small>
+          </button>
+        `).join("");
+      }
+
+      function setWheelRestaurantMenu(open) {
+        els.restaurantSelectMenu.hidden = !open;
+        els.restaurantSelectButton.setAttribute("aria-expanded", String(open));
+        if (open) {
+          els.restaurantSelectSearch.value = "";
+          renderWheelRestaurantOptions();
+          requestAnimationFrame(() => els.restaurantSelectSearch.focus());
+        }
+      }
+
+      function setLogRestaurant(id) {
+        const restaurant = restaurantById(id);
+        els.logRestaurant.value = restaurant ? restaurant.id : "";
+        els.logRestaurantButton.classList.toggle("is-placeholder", !restaurant);
+        els.logRestaurantLabel.textContent = restaurant ? restaurant.name : "Choose a restaurant…";
+        renderLogRestaurantOptions();
+      }
+
+      function renderLogRestaurantOptions() {
+        const search = normalize(els.logRestaurantSearch.value);
+        const matches = sortedRestaurants().filter(restaurant =>
+          !search || normalize(`${restaurant.name} ${restaurant.category} ${restaurant.address}`).includes(search)
+        );
+        if (!matches.length) {
+          els.logRestaurantOptions.innerHTML = `<div class="combo-no-results">No matching restaurants. Add it below.</div>`;
+          return;
+        }
+        els.logRestaurantOptions.innerHTML = matches.map(restaurant => `
+          <button class="combo-option" type="button" role="option"
+            aria-selected="${restaurant.id === els.logRestaurant.value}"
+            data-log-restaurant="${escapeHTML(restaurant.id)}">
+            <strong>${escapeHTML(restaurant.name)}</strong>
+            <small>${escapeHTML(restaurant.category)}</small>
+          </button>
+        `).join("");
+      }
+
+      function setLogRestaurantMenu(open) {
+        els.logRestaurantMenu.hidden = !open;
+        els.logRestaurantButton.setAttribute("aria-expanded", String(open));
+        if (open) {
+          els.logRestaurantSearch.value = "";
+          renderLogRestaurantOptions();
+          requestAnimationFrame(() => els.logRestaurantSearch.focus());
+        }
+      }
+
+      function sortedTeammates() {
+        return [...state.teammates].sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      function renderTeammateOptions() {
+        const options = sortedTeammates();
+        const optionMarkup = selectedName => options.map(teammate => `
+          <button class="combo-option" type="button" role="option"
+            aria-selected="${normalize(teammate.name) === normalize(selectedName)}"
+            data-teammate-name="${escapeHTML(teammate.name)}">
+            <strong>${escapeHTML(teammate.name)}</strong>
+          </button>
+        `).join("");
+        els.teammateSelectOptions.innerHTML = optionMarkup(els.pickerName.value);
+        els.logTeammateOptions.innerHTML = optionMarkup(els.logPerson.value);
+      }
+
+      function setPickerName(name) {
+        const teammate = state.teammates.find(item => normalize(item.name) === normalize(name));
+        els.pickerName.value = teammate ? teammate.name : "";
+        els.teammateSelectButton.classList.toggle("is-placeholder", !teammate);
+        els.teammateSelectLabel.textContent = teammate ? teammate.name : "Choose teammate…";
+        renderTeammateOptions();
+      }
+
+      function setLogPerson(name) {
+        const teammate = state.teammates.find(item => normalize(item.name) === normalize(name));
+        const selectedName = teammate ? teammate.name : String(name || "").trim();
+        els.logPerson.value = selectedName;
+        els.logTeammateButton.classList.toggle("is-placeholder", !selectedName);
+        els.logTeammateLabel.textContent = selectedName || "Choose teammate…";
+        renderTeammateOptions();
+      }
+
+      function setTeammateAddMode(context, open) {
+        const isLog = context === "log";
+        const trigger = isLog ? els.showAddLogTeammateBtn : els.showAddTeammateBtn;
+        const form = isLog ? els.logTeammateAddForm : els.teammateAddForm;
+        const input = isLog ? els.newLogTeammateName : els.newTeammateName;
+        trigger.hidden = open;
+        form.hidden = !open;
+        if (open) {
+          input.value = "";
+          requestAnimationFrame(() => input.focus());
+        }
+      }
+
+      function setTeammateMenu(context, open) {
+        const isLog = context === "log";
+        const menu = isLog ? els.logTeammateMenu : els.teammateSelectMenu;
+        const button = isLog ? els.logTeammateButton : els.teammateSelectButton;
+        menu.hidden = !open;
+        button.setAttribute("aria-expanded", String(open));
+        if (open) renderTeammateOptions();
+        else setTeammateAddMode(context, false);
+      }
+
+      function addTeammate(name, context) {
+        const cleanName = String(name || "").trim();
+        if (!cleanName) {
+          showToast("Enter a teammate name.");
+          return;
+        }
+        let teammate = state.teammates.find(item => normalize(item.name) === normalize(cleanName));
+        if (!teammate) {
+          teammate = { id: uid("teammate"), name: cleanName, createdAt: Date.now() };
+          state.teammates.push(teammate);
+          saveState();
+          queueCloudOp("upsertTeammate", { teammate });
+          showToast(`${cleanName} added to the teammate list.`);
+        }
+        if (context === "log") setLogPerson(teammate.name);
+        else setPickerName(teammate.name);
+        setTeammateMenu(context, false);
+        if (context !== "log") addReadyWheelPick();
+      }
+
+      function restaurantWasVisited(restaurant) {
+        return state.logs.some(log =>
+          (log.restaurantId && log.restaurantId === restaurant.id)
+          || normalize(log.restaurantName) === normalize(restaurant.name)
+        );
       }
 
       function renderRestaurantList() {
         const search = normalize(els.restaurantSearch.value);
-        const category = els.categoryFilter.value;
         const matches = sortedRestaurants().filter(restaurant => {
           const matchesText = !search || normalize(`${restaurant.name} ${restaurant.category} ${restaurant.address}`).includes(search);
-          return matchesText && (!category || restaurant.category === category);
+          return matchesText && (categoryFilters.size === 0 || categoryFilters.has(restaurant.category));
         });
         if (!matches.length) {
           els.restaurantList.innerHTML = `<div class="empty-state">No restaurants match those filters.</div>`;
@@ -1661,32 +3030,123 @@
         els.restaurantList.innerHTML = matches.map(restaurant => `
           <article class="restaurant-item">
             <div>
-              <div class="restaurant-name" title="${escapeHTML(restaurant.name)}">${escapeHTML(restaurant.name)}</div>
+              <div class="restaurant-name" title="${escapeHTML(restaurant.name)}">
+                <span class="restaurant-name-text">${escapeHTML(restaurant.name)}</span>
+                ${restaurantWasVisited(restaurant) ? `<span class="visited-icon" title="Visited" aria-label="Visited">${LOG_ICONS.visited}</span>` : ""}
+              </div>
               <div class="restaurant-meta"><span>${escapeHTML(restaurant.category)}</span>${restaurant.rating ? `<span class="dot"></span><span>★ ${restaurant.rating.toFixed(1)}</span>` : ""}${restaurant.address ? `<span class="dot"></span><span>Address saved</span>` : ""}</div>
             </div>
             <div class="restaurant-actions">
-              <button class="mini-action" type="button" data-map-restaurant="${escapeHTML(restaurant.id)}" title="Preview route to ${escapeHTML(restaurant.name)}" aria-label="Preview route to ${escapeHTML(restaurant.name)}">⌖</button>
-              <button class="mini-action" type="button" data-edit-restaurant="${escapeHTML(restaurant.id)}" title="Edit ${escapeHTML(restaurant.name)}" aria-label="Edit ${escapeHTML(restaurant.name)}">✎</button>
-              <button class="mini-action" type="button" data-pick-restaurant="${escapeHTML(restaurant.id)}" title="Add ${escapeHTML(restaurant.name)} to the wheel" aria-label="Add ${escapeHTML(restaurant.name)} to the wheel">+</button>
+              <button class="mini-action" type="button" data-map-restaurant="${escapeHTML(restaurant.id)}"
+                data-tooltip="show route" aria-label="Show the route to ${escapeHTML(restaurant.name)}">${LOG_ICONS.showOnMap}</button>
+              <a class="mini-action" href="${escapeHTML(googleMapsRestaurantUrl(restaurant))}" target="_blank" rel="noopener"
+                data-tooltip="open in Google Maps" aria-label="Open ${escapeHTML(restaurant.name)} in Google Maps">${LOG_ICONS.googleMaps}</a>
+              <button class="mini-action" type="button" data-edit-restaurant="${escapeHTML(restaurant.id)}"
+                data-tooltip="edit restaurant" aria-label="Edit ${escapeHTML(restaurant.name)}">${LOG_ICONS.edit}</button>
+              <button class="mini-action" type="button" data-pick-restaurant="${escapeHTML(restaurant.id)}"
+                data-tooltip="add to wheel" aria-label="Add ${escapeHTML(restaurant.name)} to the wheel">${LOG_ICONS.add}</button>
             </div>
           </article>
         `).join("");
       }
 
+      function setMapFilterMenu(open) {
+        els.mapFilterMenu.hidden = !open;
+        els.mapFilterBtn.setAttribute("aria-expanded", String(open));
+        if (open) renderMapFilterOptions();
+      }
+
+      function restaurantDistanceFromOffice(restaurant) {
+        const latitude = restaurant.latitude == null || restaurant.latitude === "" ? NaN : Number(restaurant.latitude);
+        const longitude = restaurant.longitude == null || restaurant.longitude === "" ? NaN : Number(restaurant.longitude);
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          const radians = degrees => degrees * Math.PI / 180;
+          const latitudeDelta = radians(latitude - OFFICE.lat);
+          const longitudeDelta = radians(longitude - OFFICE.lng);
+          const a = Math.sin(latitudeDelta / 2) ** 2
+            + Math.cos(radians(OFFICE.lat)) * Math.cos(radians(latitude)) * Math.sin(longitudeDelta / 2) ** 2;
+          return 3958.8 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+        const cached = cachedRouteFor(restaurant);
+        return cached && Number.isFinite(Number(cached.miles)) ? Number(cached.miles) : Infinity;
+      }
+
+      function renderMapFilterOptions() {
+        const sortOptions = [
+          ["name", "Restaurant name"],
+          ["distance-asc", "Distance: nearest first"],
+          ["distance-desc", "Distance: farthest first"]
+        ];
+        els.mapSortOptions.innerHTML = sortOptions.map(([value, label]) => `
+          <button class="map-filter-option" type="button" data-map-sort="${value}"
+            aria-pressed="${String(mapSortOrder === value)}"><span>${label}</span>${mapSortOrder === value ? LOG_ICONS.check : ""}</button>
+        `).join("");
+        const cuisines = [...new Set(state.restaurants.map(restaurant => restaurant.category).filter(Boolean))]
+          .sort((a, b) => a.localeCompare(b));
+        [...mapCuisineFilters].forEach(cuisine => {
+          if (!cuisines.includes(cuisine)) mapCuisineFilters.delete(cuisine);
+        });
+        els.mapCuisineOptions.innerHTML = [
+          `<button class="map-filter-option" type="button" data-map-cuisine="" aria-pressed="${String(mapCuisineFilters.size === 0)}"><span>All cuisines</span>${mapCuisineFilters.size === 0 ? LOG_ICONS.check : ""}</button>`,
+          ...cuisines.map(cuisine => `
+            <button class="map-filter-option" type="button" data-map-cuisine="${escapeHTML(cuisine)}"
+              aria-pressed="${String(mapCuisineFilters.has(cuisine))}"><span>${escapeHTML(cuisine)}</span>${mapCuisineFilters.has(cuisine) ? LOG_ICONS.check : ""}</button>
+          `)
+        ].join("");
+        els.mapFilterControl.classList.toggle("is-filtered", mapSortOrder !== "name" || mapCuisineFilters.size > 0);
+      }
+
+      function setMapCardTooltip(card) {
+        if (!card) {
+          els.mapCardTooltip.hidden = true;
+          return;
+        }
+        const bounds = card.getBoundingClientRect();
+        els.mapCardTooltip.textContent = card.dataset.tooltip || "Add to wheel";
+        els.mapCardTooltip.style.left = `${bounds.right + 4}px`;
+        els.mapCardTooltip.style.top = `${bounds.top + bounds.height / 2}px`;
+        els.mapCardTooltip.hidden = false;
+      }
+
       function renderMapRestaurantList() {
+        setMapCardTooltip(null);
         const search = normalize(els.mapRestaurantSearch.value);
         const matches = sortedRestaurants().filter(restaurant =>
-          !search || normalize(`${restaurant.name} ${restaurant.category} ${restaurant.address}`).includes(search)
+          (!search || normalize(`${restaurant.name} ${restaurant.category} ${restaurant.address}`).includes(search))
+          && (mapCuisineFilters.size === 0 || mapCuisineFilters.has(restaurant.category))
         );
+        if (mapSortOrder !== "name") {
+          const direction = mapSortOrder === "distance-desc" ? -1 : 1;
+          matches.sort((a, b) => {
+            const aDistance = restaurantDistanceFromOffice(a);
+            const bDistance = restaurantDistanceFromOffice(b);
+            if (!Number.isFinite(aDistance) && !Number.isFinite(bDistance)) return a.name.localeCompare(b.name);
+            if (!Number.isFinite(aDistance)) return 1;
+            if (!Number.isFinite(bDistance)) return -1;
+            return (aDistance - bDistance) * direction || a.name.localeCompare(b.name);
+          });
+        }
         if (!matches.length) {
-          els.mapRestaurantList.innerHTML = `<div class="empty-state">No restaurants match that search.</div>`;
+          els.mapRestaurantList.innerHTML = `<div class="empty-state">No restaurants match those filters.</div>`;
           return;
         }
         els.mapRestaurantList.innerHTML = matches.map(restaurant => {
           const cached = cachedRouteFor(restaurant);
+          const isActive = activeRestaurantId === restaurant.id;
           const isLoading = routeLoadingId === restaurant.id;
-          const driveLabel = isLoading ? "Calculating…" : cached ? `${cached.minutes} min` : "Click for drive time";
-          const distanceLabel = cached ? `${cached.miles} mi from office` : "Route from Arista Austin";
+          const driveLabel = isLoading
+            ? "Calculating…"
+            : isActive && cached
+              ? `${cached.minutes} min`
+              : isActive
+                ? "Click for drive time"
+                : "Click for route information";
+          const distanceLabel = isActive && cached
+            ? `${cached.miles} mi from office`
+            : "Route from Arista Austin";
+          const routeMarkup = isActive || isLoading
+            ? `<span>${escapeHTML(distanceLabel)}</span><strong>${escapeHTML(driveLabel)}</strong>`
+            : `<span>Click for route information</span>`;
           const reviewCount = formatReviewCount(restaurant.ratingCount);
           const ratingLabel = restaurant.rating
             ? `★ ${restaurant.rating.toFixed(1)} Google${reviewCount ? ` (${reviewCount})` : ""}`
@@ -1696,15 +3156,18 @@
             ? `<a class="rating" href="${escapeHTML(googleMapsUrl)}" target="_blank" rel="noopener">${escapeHTML(ratingLabel)}</a>`
             : `<span class="rating">${escapeHTML(ratingLabel)}</span>`;
           return `
-            <article class="map-restaurant-card${activeRestaurantId === restaurant.id ? " is-active" : ""}${isLoading ? " is-loading" : ""}"
+            <article class="map-restaurant-card${isActive ? " is-active" : ""}${isLoading ? " is-loading" : ""}"
               draggable="true" data-map-card data-restaurant-id="${escapeHTML(restaurant.id)}" tabindex="0"
+              data-tooltip="Add to wheel"
               aria-label="${escapeHTML(restaurant.name)}. ${escapeHTML(restaurant.category)}. ${escapeHTML(driveLabel)}">
               <div class="map-card-top">
-                <h3 title="${escapeHTML(restaurant.name)}">${escapeHTML(restaurant.name)}</h3>
-                <button class="map-add-btn" type="button" data-add-from-map="${escapeHTML(restaurant.id)}" title="Add ${escapeHTML(restaurant.name)} to wheel" aria-label="Add ${escapeHTML(restaurant.name)} to wheel">+</button>
+                <h3>
+                  <span class="restaurant-name-text">${escapeHTML(restaurant.name)}</span>
+                  ${restaurantWasVisited(restaurant) ? `<span class="visited-icon" title="Visited" aria-label="Visited">${LOG_ICONS.visited}</span>` : ""}
+                </h3>
               </div>
               <div class="map-card-meta"><span>${escapeHTML(restaurant.category)}</span>${ratingMarkup}</div>
-              <div class="map-card-route"><span>${escapeHTML(distanceLabel)}</span><strong>${escapeHTML(driveLabel)}</strong></div>
+              <div class="map-card-route${!isActive && !isLoading ? " is-placeholder" : ""}">${routeMarkup}</div>
             </article>
           `;
         }).join("");
@@ -1721,6 +3184,7 @@
         els.spinBtn.disabled = picks.length < 2 || isSpinning;
         els.spinBtn.textContent = isSpinning ? "Spinning…" : "Spin the wheel";
         els.collapsedPickCount.textContent = picks.length;
+        els.pickChips.classList.toggle("is-empty", !picks.length);
         if (!picks.length) {
           els.pickChips.innerHTML = `<div class="empty-state" style="width:100%">Drag a restaurant here or add at least two picks.</div>`;
         } else {
@@ -1756,13 +3220,54 @@
         els.historyList.innerHTML = logs.length ? logs.map(log => {
           const date = new Date(`${log.date}T12:00:00`);
           const valid = !Number.isNaN(date.getTime());
-          const day = valid ? date.getDate() : "—";
-          const month = valid ? date.toLocaleDateString(undefined, { month: "short" }) : "";
+          const dateLabel = valid
+            ? date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+            : log.date;
+          const rating = normalizeRating(log.rating);
+          const ratingStars = rating
+            ? Array.from({ length: 5 }, (_, index) => {
+                const fill = Math.max(0, Math.min(1, rating - index)) * 100;
+                return `<span class="history-star" style="--star-fill:${fill}%">★</span>`;
+              }).join("")
+            : "";
+          const ratingMarkup = rating ? `
+            <div class="history-detail history-rating" aria-label="Group rating: ${rating} out of 5 stars">
+              <span class="history-detail-icon">${LOG_ICONS.rating}</span>
+              <span class="history-rating-label">Group rating</span>
+              <span class="history-stars" aria-hidden="true">${ratingStars}</span>
+            </div>
+          ` : "";
+          const notesMarkup = log.notes ? `
+            <div class="history-detail history-note">
+              <span class="history-detail-icon">${LOG_ICONS.note}</span>
+              <span>${escapeHTML(log.notes)}</span>
+            </div>
+          ` : "";
           return `
-            <article class="history-row" title="${escapeHTML(log.notes || "")}">
-              <div class="date-tile"><strong>${day}</strong><span>${escapeHTML(month)}</span></div>
-              <div class="history-info"><strong>${escapeHTML(log.restaurantName)}</strong><span>Picked by ${escapeHTML(log.person)}${log.notes ? ` · ${escapeHTML(log.notes)}` : ""}</span></div>
-              <button class="delete-log" type="button" data-delete-log="${escapeHTML(log.id)}" title="Delete log entry" aria-label="Delete ${escapeHTML(log.restaurantName)} from the lunch log">×</button>
+            <article class="history-event">
+              <div class="history-rail" aria-hidden="true"><span class="history-dot"></span><span class="history-line"></span></div>
+              <div class="history-content">
+                <div class="history-event-head">
+                  <div class="history-title">
+                    <strong>${escapeHTML(log.restaurantName)}</strong>
+                    <time datetime="${escapeHTML(log.date)}">${escapeHTML(dateLabel)}</time>
+                  </div>
+                  <div class="history-actions">
+                    <button class="history-action" type="button" data-edit-log="${escapeHTML(log.id)}"
+                      data-tooltip="edit lunch" aria-label="Edit ${escapeHTML(log.restaurantName)} lunch log entry">${LOG_ICONS.edit}</button>
+                    <button class="history-action delete" type="button" data-delete-log="${escapeHTML(log.id)}"
+                      data-tooltip="remove lunch" aria-label="Delete ${escapeHTML(log.restaurantName)} from the lunch log">${LOG_ICONS.remove}</button>
+                  </div>
+                </div>
+                <div class="history-details">
+                  <div class="history-detail">
+                    <span class="history-detail-icon">${LOG_ICONS.person}</span>
+                    <span><span class="history-winning-label">Winning pick by</span> <strong class="history-winning-name">${escapeHTML(log.person)}</strong></span>
+                  </div>
+                  ${ratingMarkup}
+                  ${notesMarkup}
+                </div>
+              </div>
             </article>
           `;
         }).join("") : `<div class="empty-state">Your Friday lunch history will appear here.</div>`;
@@ -1778,7 +3283,9 @@
       function renderAll() {
         populateCategories();
         renderRestaurantOptions();
+        renderTeammateOptions();
         renderRestaurantList();
+        renderMapFilterOptions();
         renderMapRestaurantList();
         renderPicks();
         renderRecords();
@@ -1800,6 +3307,17 @@
         els.winnerCard.classList.remove("show");
         saveState();
         renderPicks();
+      }
+
+      function addReadyWheelPick() {
+        const person = els.pickerName.value.trim();
+        const restaurantId = els.restaurantSelect.value;
+        if (!person || !restaurantId) return false;
+        addPick(person, restaurantId);
+        setPickerName("");
+        setWheelRestaurant("");
+        els.teammateSelectButton.focus();
+        return true;
       }
 
       function fitCanvas() {
@@ -1839,7 +3357,7 @@
           ctx.fillStyle = "#756c65";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.font = `800 ${size * .035}px Nunito, sans-serif`;
+          ctx.font = `700 ${size * .035}px "Outfit", sans-serif`;
           ctx.fillText("YOUR PICKS GO HERE", 0, -size * .16);
           ctx.restore();
           return;
@@ -1870,11 +3388,11 @@
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           const fontSize = Math.max(size * .018, Math.min(size * .033, size * (.19 / Math.max(picks.length, 3))));
-          ctx.font = `900 ${fontSize}px Nunito, sans-serif`;
+          ctx.font = `700 ${fontSize}px "Outfit", sans-serif`;
           const maxChars = picks.length > 10 ? 12 : picks.length > 6 ? 16 : 21;
           ctx.fillText(truncateLabel(restaurant.name, maxChars), 0, -fontSize * .42);
           ctx.globalAlpha = .78;
-          ctx.font = `700 ${fontSize * .7}px Nunito, sans-serif`;
+          ctx.font = `700 ${fontSize * .7}px "Outfit", sans-serif`;
           ctx.fillText(truncateLabel(pick.person, 16), 0, fontSize * .72);
           ctx.restore();
         });
@@ -1923,22 +3441,26 @@
             els.winnerPerson.textContent = `${currentWinner.person} brought the winning pick`;
             els.winnerCard.classList.add("show");
             renderPicks();
-            showRoute(restaurant);
+            showRoute(restaurant, { focusMap: false });
             if (navigator.vibrate) navigator.vibrate([50, 40, 80]);
           }
         }
         requestAnimationFrame(animate);
       }
 
-      function openRestaurantDialog(id = "") {
+      function openRestaurantDialog(id = "", options = {}) {
         const restaurant = id ? restaurantById(id) : null;
+        restaurantDialogReturnsToLog = Boolean(options.returnToLog);
+        restaurantDialogReturnsToWheel = Boolean(options.returnToWheel);
+        restaurantDialogReturnsToMap = Boolean(options.returnToMap);
         els.restaurantForm.reset();
         els.editingRestaurantId.value = restaurant ? restaurant.id : "";
         els.restaurantModalTitle.textContent = restaurant ? "Edit restaurant" : "Add a restaurant";
         els.deleteRestaurantBtn.hidden = !restaurant;
+        setRestaurantCategory(restaurant ? restaurant.category : "");
+        setRestaurantCategoryMenu(false);
         if (restaurant) {
           els.restaurantNameInput.value = restaurant.name;
-          els.restaurantCategoryInput.value = restaurant.category;
           els.restaurantAddressInput.value = restaurant.address || "";
           els.restaurantRatingInput.value = restaurant.rating || "";
         }
@@ -1948,6 +3470,84 @@
 
       function closeDialog(dialog) {
         if (dialog.open) dialog.close();
+      }
+
+      function renderLogRating(value, preview = false) {
+        const numeric = Number(value);
+        const rating = Number.isFinite(numeric) && numeric >= .5 && numeric <= 5
+          ? Math.round(numeric * 2) / 2
+          : "";
+        els.logRatingControl.querySelectorAll("[data-log-rating]").forEach(button => {
+          const wholeStar = Number(button.dataset.logRating);
+          const fill = rating ? Math.max(0, Math.min(1, rating - (wholeStar - 1))) * 100 : 0;
+          const selectedRating = Number(els.logRating.value);
+          button.style.setProperty("--star-fill", `${fill}%`);
+          button.classList.toggle("is-previewing", preview);
+          button.setAttribute("aria-checked", String(Boolean(selectedRating) && wholeStar === Math.ceil(selectedRating)));
+        });
+        els.logRatingStatus.textContent = rating ? `${rating} of 5` : "Not rated";
+      }
+
+      function setLogRating(value) {
+        const numeric = Number(value);
+        const rating = Number.isFinite(numeric) && numeric >= .5 && numeric <= 5
+          ? Math.round(numeric * 2) / 2
+          : "";
+        els.logRating.value = rating;
+        renderLogRating(rating);
+        els.clearLogRatingBtn.hidden = !rating;
+      }
+
+      function ratingFromPointer(star, clientX) {
+        const wholeStar = Number(star.dataset.logRating);
+        const bounds = star.getBoundingClientRect();
+        return wholeStar - (clientX < bounds.left + bounds.width / 2 ? .5 : 0);
+      }
+
+      function openLogDialog(id = "") {
+        const log = id ? state.logs.find(item => item.id === id) : null;
+        els.logForm.reset();
+        els.editingLogId.value = log ? log.id : "";
+        els.logModalTitle.textContent = log ? "Edit past lunch" : "Add a past lunch";
+        els.saveLogBtn.textContent = log ? "Save changes" : "Add to lunch log";
+        setLogDate(log ? log.date : (els.lunchDate.value || upcomingFriday()));
+        setLogPerson(log ? log.person : "");
+        setLogRestaurant(log ? log.restaurantId : "");
+        setLogRating(log ? log.rating : "");
+        els.logNotes.value = log ? (log.notes || "") : "";
+        setLogDateMenu(false);
+        setLogRestaurantMenu(false);
+        setTeammateMenu("log", false);
+        els.logDialog.showModal();
+        requestAnimationFrame(() => els.logTeammateButton.focus());
+      }
+
+      function captureLogDraft() {
+        pendingLogDraft = {
+          editingId: els.editingLogId.value,
+          date: els.logDate.value,
+          person: els.logPerson.value,
+          restaurantId: els.logRestaurant.value,
+          rating: els.logRating.value,
+          notes: els.logNotes.value
+        };
+      }
+
+      function restoreLogAfterRestaurant(restaurantId = "") {
+        const draft = pendingLogDraft || {};
+        pendingLogDraft = null;
+        restaurantDialogReturnsToLog = false;
+        els.logForm.reset();
+        els.editingLogId.value = draft.editingId || "";
+        els.logModalTitle.textContent = draft.editingId ? "Edit past lunch" : "Add a past lunch";
+        els.saveLogBtn.textContent = draft.editingId ? "Save changes" : "Add to lunch log";
+        setLogDate(draft.date || els.lunchDate.value || upcomingFriday());
+        setLogPerson(draft.person || "");
+        setLogRating(draft.rating || "");
+        els.logNotes.value = draft.notes || "";
+        setLogRestaurant(restaurantId || draft.restaurantId || "");
+        setLogRestaurantMenu(false);
+        els.logDialog.showModal();
       }
 
       function saveWinner() {
@@ -1969,12 +3569,15 @@
           restaurantName: restaurant.name,
           person: currentWinner.person,
           notes: "",
+          rating: "",
           createdAt: Date.now()
         };
         state.logs.push(log);
         saveState();
         queueCloudOp("upsertLog", { log });
         renderRecords();
+        renderRestaurantList();
+        renderMapRestaurantList();
         els.saveWinnerBtn.disabled = true;
         els.saveWinnerBtn.textContent = "Saved";
         showToast("Winner saved. Leaderboard updated!");
@@ -1986,26 +3589,41 @@
           els.mapFallback.style.display = "flex";
           return;
         }
-        map = L.map("map", { zoomControl: true, scrollWheelZoom: false }).setView([OFFICE.lat, OFFICE.lng], 12);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        map = L.map("map", {
+          zoomControl: false,
+          scrollWheelZoom: false,
+          zoomAnimation: false,
+          fadeAnimation: false,
+          markerZoomAnimation: false
+        }).setView([OFFICE.lat, OFFICE.lng], 12);
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
           attribution: "&copy; OpenStreetMap contributors"
         }).addTo(map);
         const officeIcon = L.divIcon({
           className: "",
-          html: `<div style="display:grid;width:34px;height:34px;place-items:center;color:#fffefa;background:#3b2a24;border:4px solid #fffefa;border-radius:50%;box-shadow:0 4px 12px rgba(59,42,36,.3);font:900 11px Nunito">A</div>`,
+          html: `<div style="display:grid;width:34px;height:34px;padding:4px;place-items:center;background:#fffefa;border-radius:50%;box-shadow:0 4px 12px rgba(59,42,36,.3)"><svg width="26" height="26" viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M32 0C49.6731 0 64 14.3269 64 32C64 49.6731 49.6731 64 32 64C14.3269 64 0 49.6731 0 32C0 14.3269 14.3269 0 32 0ZM32 18C31.0657 18 30.2016 18.4804 29.7344 19.2598L15 42H21.5381L24.7432 36.9609H32.5625L35.9229 31.9229H27.9482L31.9971 25.5576L42.4619 42H49L34.2656 19.2598C33.7984 18.4803 32.9344 18 32 18Z" fill="#3875cc"/></svg></div>`,
           iconSize: [34, 34],
           iconAnchor: [17, 17]
         });
         officeMarker = L.marker([OFFICE.lat, OFFICE.lng], { icon: officeIcon }).addTo(map)
-          .bindPopup(`<strong>${OFFICE.name}</strong><br>${OFFICE.address}`);
+          .bindPopup(`<strong>${OFFICE.name}</strong><br>${OFFICE.address}`)
+          .bindTooltip("Arista Austin", { direction: "top", offset: [0, -16] });
         setTimeout(() => map.invalidateSize(), 100);
       }
 
       async function geocodeRestaurant(restaurant) {
-        const query = restaurant.address
-          ? `${restaurant.address}, Austin, Texas`
-          : `${restaurant.name}, Austin, Texas`;
+        const latitude = Number(restaurant.latitude);
+        const longitude = Number(restaurant.longitude);
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          return {
+            lat: latitude,
+            lng: longitude,
+            displayName: restaurant.googleAddress || restaurant.address || restaurant.name
+          };
+        }
+        const savedAddress = restaurant.address || restaurant.googleAddress;
+        const query = savedAddress ? `${savedAddress}, Austin, Texas` : `${restaurant.name}, Austin, Texas`;
         const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=us&viewbox=-98.10,30.55,-97.45,29.95&bounded=0&q=${encodeURIComponent(query)}`, {
           headers: { "Accept": "application/json" }
         });
@@ -2019,17 +3637,53 @@
         };
       }
 
-      async function showRoute(restaurant) {
+      function routeFitOptions() {
+        const mapElement = document.getElementById("map");
+        const mapRect = mapElement.getBoundingClientRect();
+        if (window.innerWidth <= 980) {
+          return { paddingTopLeft: [35, 35], paddingBottomRight: [35, 175], maxZoom: 14, animate: false };
+        }
+        const listRect = document.querySelector(".map-list-overlay").getBoundingClientRect();
+        const routeRect = document.querySelector(".route-map-overlay").getBoundingClientRect();
+        const wheelRect = els.wheelPanel.hidden ? null : els.wheelPanel.getBoundingClientRect();
+        const left = Math.max(45, listRect.right - mapRect.left + 28);
+        const right = wheelRect ? Math.max(45, mapRect.right - wheelRect.left + 28) : 45;
+        const bottom = Math.max(70, mapRect.bottom - routeRect.top + 28);
+        return {
+          paddingTopLeft: [left, 55],
+          paddingBottomRight: [right, bottom],
+          maxZoom: 14,
+          animate: false
+        };
+      }
+
+      async function showRoute(restaurant, options = {}) {
+        if (options.focusMap !== false) setWheelCollapsed(true);
         const requestId = ++routeRequest;
+        [els.routeTime, els.routeDistance, els.routeDestination].forEach(element => element.classList.remove("is-placeholder"));
         activeRestaurantId = restaurant.id;
         routeLoadingId = restaurant.id;
         renderMapRestaurantList();
-        els.routeDestination.textContent = restaurant.name;
+        const savedDestinationAddress = restaurant.address || restaurant.googleAddress || "";
+        els.routeDestination.textContent = savedDestinationAddress
+          ? `${restaurant.name} • ${savedDestinationAddress}`
+          : restaurant.name;
         els.routeTime.textContent = "…";
         els.routeDistance.textContent = "…";
+        els.routeNote.hidden = false;
         els.routeNote.textContent = "Finding the restaurant and calculating the drive…";
-        const destinationQuery = restaurant.address || `${restaurant.name}, Austin, TX`;
+        const destinationQuery = restaurant.address || restaurant.googleAddress || `${restaurant.name}, Austin, TX`;
         els.googleDirectionsLink.href = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(OFFICE.address)}&destination=${encodeURIComponent(destinationQuery)}&travelmode=driving`;
+        if (map) {
+          if (destinationMarker) {
+            destinationMarker.remove();
+            destinationMarker = null;
+          }
+          if (routeLayer) {
+            routeLayer.remove();
+            routeLayer = null;
+          }
+        }
 
         try {
           const cached = cachedRouteFor(restaurant);
@@ -2039,9 +3693,20 @@
           if (requestId !== routeRequest) return;
           if (map) {
             if (destinationMarker) destinationMarker.remove();
-            destinationMarker = L.marker([place.lat, place.lng]).addTo(map)
+            const restaurantIcon = L.divIcon({
+              className: "",
+              html: `<div style="display:grid;width:38px;height:38px;place-items:center;color:#3b2a24;background:#c9dfb7;border:4px solid #fffefa;border-radius:50% 50% 50% 10%;box-shadow:0 5px 15px rgba(59,42,36,.3);font:700 13px 'Outfit';transform:rotate(-45deg)"><span style="transform:rotate(45deg)">R</span></div>`,
+              iconSize: [38, 38],
+              iconAnchor: [19, 34]
+            });
+            destinationMarker = L.marker([place.lat, place.lng], { icon: restaurantIcon, zIndexOffset: 1000 }).addTo(map)
               .bindPopup(`<strong>${escapeHTML(restaurant.name)}</strong><br>${escapeHTML(place.displayName)}`)
-              .openPopup();
+              .bindTooltip(escapeHTML(restaurant.name), {
+                permanent: true,
+                direction: "top",
+                offset: [0, -35],
+                className: "route-label"
+              });
           }
 
           const routeUrl = `https://router.project-osrm.org/route/v1/driving/${OFFICE.lng},${OFFICE.lat};${place.lng},${place.lat}?overview=full&geometries=geojson&steps=false`;
@@ -2055,7 +3720,12 @@
           const miles = (route.distance / 1609.344).toFixed(1);
           els.routeTime.textContent = `${minutes} min`;
           els.routeDistance.textContent = `${miles} mi`;
-          els.routeNote.textContent = restaurant.address || place.displayName;
+          const destinationAddress = restaurant.address || restaurant.googleAddress || place.displayName || "";
+          els.routeDestination.textContent = destinationAddress
+            ? `${restaurant.name} • ${destinationAddress}`
+            : restaurant.name;
+          els.routeNote.textContent = "";
+          els.routeNote.hidden = true;
           routeCache[restaurant.id] = {
             fingerprint: routeFingerprint(restaurant),
             lat: place.lat,
@@ -2068,16 +3738,38 @@
           saveRouteCache();
           if (map) {
             if (routeLayer) routeLayer.remove();
-            routeLayer = L.geoJSON(route.geometry, { style: { color: "#6f4c91", weight: 6, opacity: .8 } }).addTo(map);
-            map.fitBounds(routeLayer.getBounds(), {
-              paddingTopLeft: window.innerWidth > 980 ? [370, 50] : [40, 40],
-              paddingBottomRight: window.innerWidth > 980 ? [450, 150] : [40, 170]
+            const coordinates = route.geometry && Array.isArray(route.geometry.coordinates)
+              ? route.geometry.coordinates.map(point => [point[1], point[0]])
+              : [];
+            if (!coordinates.length) throw new Error("Route geometry was empty");
+            const routeCasing = L.polyline(coordinates, {
+              color: "#fffefa",
+              weight: 13,
+              opacity: .96,
+              lineCap: "round",
+              lineJoin: "round",
+              interactive: false
             });
+            const routeLine = L.polyline(coordinates, {
+              color: "#6f4c91",
+              weight: 8,
+              opacity: 1,
+              lineCap: "round",
+              lineJoin: "round",
+              interactive: false
+            });
+            routeLayer = L.layerGroup([routeCasing, routeLine]).addTo(map);
+            map.invalidateSize({ pan: false });
+            map.stop();
+            map.fitBounds(routeLine.getBounds(), routeFitOptions());
+            routeCasing.bringToFront();
+            routeLine.bringToFront();
           }
         } catch (error) {
           if (requestId !== routeRequest) return;
           els.routeTime.textContent = "—";
           els.routeDistance.textContent = "—";
+          els.routeNote.hidden = false;
           els.routeNote.textContent = "Couldn’t match this location automatically. Add its exact street address using the edit button, or open Google Maps.";
           if (map) map.setView([OFFICE.lat, OFFICE.lng], 12);
           console.warn(error);
@@ -2118,8 +3810,12 @@
             }
             state = incoming;
             state.pendingOps = [];
+            state.teammates = mergeTeammates(state.teammates);
             state.restaurants.forEach(restaurant => {
               restaurant.rating = normalizeRating(restaurant.rating);
+            });
+            state.logs.forEach(log => {
+              log.rating = normalizeRating(log.rating);
             });
             currentWinner = null;
             saveState();
@@ -2130,6 +3826,7 @@
               Promise.resolve()
                 .then(() => cloudPost("seedRestaurants", { restaurants: state.restaurants }))
                 .then(() => cloudPost("seedLogs", { logs: state.logs }))
+                .then(() => cloudPost("seedTeammates", { teammates: state.teammates }))
                 .then(syncFromCloud)
                 .catch(error => {
                   console.warn("Could not copy imported data to the shared Sheet.", error);
@@ -2156,7 +3853,13 @@
           if (link.dataset.tabTarget === activeTab) link.setAttribute("aria-current", "page");
           else link.removeAttribute("aria-current");
         });
-        if (updateHash && location.hash !== `#${activeTab}`) history.pushState(null, "", `#${activeTab}`);
+        if (updateHash && window.self === window.top && location.hash !== `#${activeTab}`) {
+          try {
+            history.pushState(null, "", `#${activeTab}`);
+          } catch (error) {
+            // Tab switching still works when an embed blocks history updates.
+          }
+        }
         window.scrollTo({ top: 0, behavior: "auto" });
         if (activeTab === "map") {
           setTimeout(() => {
@@ -2170,22 +3873,21 @@
         const restaurant = restaurantById(restaurantId);
         if (!restaurant) return;
         const person = els.pickerName.value.trim();
-        els.restaurantSelect.value = restaurantId;
+        setWheelRestaurant(restaurantId);
         if (!person) {
           setWheelCollapsed(false);
-          showToast("Add the teammate’s name, then add the restaurant.");
-          els.pickerName.focus();
+          showToast("Choose a teammate, then add the restaurant.");
+          setTeammateMenu("wheel", true);
+          els.teammateSelectButton.focus();
           return;
         }
-        addPick(person, restaurantId);
-        els.pickerName.value = "";
-        els.restaurantSelect.value = "";
-        els.pickerName.focus();
+        addReadyWheelPick();
       }
 
       function setWheelCollapsed(collapsed) {
         els.wheelPanel.hidden = collapsed;
         els.expandWheelBtn.hidden = !collapsed;
+        els.mapExperience.classList.toggle("wheel-is-collapsed", collapsed);
         if (!collapsed) setTimeout(drawWheel, 30);
         if (map) setTimeout(() => map.invalidateSize(), 220);
       }
@@ -2200,20 +3902,128 @@
       });
 
       els.restaurantSearch.addEventListener("input", renderRestaurantList);
-      els.categoryFilter.addEventListener("change", renderRestaurantList);
+      els.categoryFilterButton.addEventListener("click", () => {
+        setWheelRestaurantMenu(false);
+        setLogRestaurantMenu(false);
+        setTeammateMenu("wheel", false);
+        setTeammateMenu("log", false);
+        setCategoryFilterMenu(els.categoryFilterMenu.hidden);
+      });
+      els.categoryFilterOptions.addEventListener("click", event => {
+        const option = event.target.closest("[data-category-filter]");
+        if (!option) return;
+        const category = option.dataset.categoryFilter;
+        if (!category) categoryFilters.clear();
+        else if (categoryFilters.has(category)) categoryFilters.delete(category);
+        else categoryFilters.add(category);
+        updateCategoryFilters();
+        renderRestaurantList();
+      });
+      els.restaurantCategoryButton.addEventListener("click", () => {
+        setRestaurantCategoryMenu(els.restaurantCategoryMenu.hidden);
+      });
+      els.restaurantCategoryOptions.addEventListener("click", event => {
+        const option = event.target.closest("[data-restaurant-category]");
+        if (!option) return;
+        setRestaurantCategory(option.dataset.restaurantCategory);
+        setRestaurantCategoryMenu(false);
+        els.restaurantCategoryButton.focus();
+      });
+      els.restaurantSelectButton.addEventListener("click", () => {
+        setCategoryFilterMenu(false);
+        setLogRestaurantMenu(false);
+        setTeammateMenu("wheel", false);
+        setWheelRestaurantMenu(els.restaurantSelectMenu.hidden);
+      });
+      els.restaurantSelectSearch.addEventListener("input", renderWheelRestaurantOptions);
+      els.restaurantSelectOptions.addEventListener("click", event => {
+        const option = event.target.closest("[data-wheel-restaurant]");
+        if (!option) return;
+        setWheelRestaurant(option.dataset.wheelRestaurant);
+        setWheelRestaurantMenu(false);
+        if (!addReadyWheelPick()) els.restaurantSelectButton.focus();
+      });
+      els.wheelAddRestaurantBtn.addEventListener("click", () => {
+        setWheelRestaurantMenu(false);
+        openRestaurantDialog("", { returnToWheel: true });
+      });
+      els.teammateSelectButton.addEventListener("click", () => {
+        setCategoryFilterMenu(false);
+        setWheelRestaurantMenu(false);
+        setLogRestaurantMenu(false);
+        setTeammateMenu("log", false);
+        setTeammateMenu("wheel", els.teammateSelectMenu.hidden);
+      });
+      els.teammateSelectOptions.addEventListener("click", event => {
+        const option = event.target.closest("[data-teammate-name]");
+        if (!option) return;
+        setPickerName(option.dataset.teammateName);
+        setTeammateMenu("wheel", false);
+        if (!addReadyWheelPick()) els.teammateSelectButton.focus();
+      });
+      els.showAddTeammateBtn.addEventListener("click", () => setTeammateAddMode("wheel", true));
+      els.cancelAddTeammateBtn.addEventListener("click", () => {
+        setTeammateAddMode("wheel", false);
+        els.showAddTeammateBtn.focus();
+      });
+      els.saveTeammateBtn.addEventListener("click", () => addTeammate(els.newTeammateName.value, "wheel"));
+      els.newTeammateName.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addTeammate(els.newTeammateName.value, "wheel");
+        }
+      });
       els.mapRestaurantSearch.addEventListener("input", renderMapRestaurantList);
+      els.mapFilterBtn.addEventListener("click", () => setMapFilterMenu(els.mapFilterMenu.hidden));
+      els.mapFilterMenu.addEventListener("click", event => {
+        const sortOption = event.target.closest("[data-map-sort]");
+        const cuisineOption = event.target.closest("[data-map-cuisine]");
+        if (sortOption) mapSortOrder = sortOption.dataset.mapSort;
+        if (cuisineOption) {
+          const cuisine = cuisineOption.dataset.mapCuisine;
+          if (!cuisine) mapCuisineFilters.clear();
+          else if (mapCuisineFilters.has(cuisine)) mapCuisineFilters.delete(cuisine);
+          else mapCuisineFilters.add(cuisine);
+        }
+        if (!sortOption && !cuisineOption) return;
+        renderMapFilterOptions();
+        renderMapRestaurantList();
+      });
+      els.clearMapFiltersBtn.addEventListener("click", () => {
+        mapSortOrder = "name";
+        mapCuisineFilters.clear();
+        renderMapFilterOptions();
+        renderMapRestaurantList();
+      });
+      els.mapFilterControl.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !els.mapFilterMenu.hidden) {
+          event.stopPropagation();
+          setMapFilterMenu(false);
+          els.mapFilterBtn.focus();
+        }
+      });
+      els.mapAddRestaurantBtn.addEventListener("click", () => openRestaurantDialog("", { returnToMap: true }));
+      els.mapZoomInBtn.addEventListener("click", () => {
+        if (map) map.zoomIn();
+      });
+      els.mapZoomOutBtn.addEventListener("click", () => {
+        if (map) map.zoomOut();
+      });
+      els.mapOfficeBtn.addEventListener("click", () => {
+        if (map) map.setView([OFFICE.lat, OFFICE.lng], 15, { animate: false });
+      });
       document.getElementById("addRestaurantBtn").addEventListener("click", () => openRestaurantDialog());
       document.getElementById("randomRestaurantBtn").addEventListener("click", () => {
         const candidates = sortedRestaurants().filter(restaurant =>
-          !normalize(els.mapRestaurantSearch.value) ||
-          normalize(`${restaurant.name} ${restaurant.category}`).includes(normalize(els.mapRestaurantSearch.value))
+          (!normalize(els.mapRestaurantSearch.value) ||
+          normalize(`${restaurant.name} ${restaurant.category}`).includes(normalize(els.mapRestaurantSearch.value)))
+          && (mapCuisineFilters.size === 0 || mapCuisineFilters.has(restaurant.category))
         );
-        if (!candidates.length) return showToast("No restaurants match that search.");
+        if (!candidates.length) return showToast("No restaurants match the current search and filters.");
         const restaurant = candidates[randomIndex(candidates.length)];
-        els.restaurantSelect.value = restaurant.id;
+        setWheelRestaurant(restaurant.id);
         showRoute(restaurant);
-        showToast(`${restaurant.name} selected. Add a teammate name to put it on the wheel.`);
-        els.pickerName.focus();
+        showToast(`${restaurant.name} selected at random.`);
       });
 
       els.restaurantList.addEventListener("click", event => {
@@ -2223,8 +4033,9 @@
         if (pickButton) {
           activateTab("map");
           setWheelCollapsed(false);
-          els.restaurantSelect.value = pickButton.dataset.pickRestaurant;
-          els.pickerName.focus();
+          setWheelRestaurant(pickButton.dataset.pickRestaurant);
+          setTeammateMenu("wheel", true);
+          els.teammateSelectButton.focus();
         }
         if (editButton) openRestaurantDialog(editButton.dataset.editRestaurant);
         if (mapButton) {
@@ -2236,14 +4047,25 @@
         }
       });
 
+      els.mapRestaurantList.addEventListener("pointerover", event => {
+        const card = event.target.closest("[data-map-card]");
+        if (card) setMapCardTooltip(card);
+      });
+      els.mapRestaurantList.addEventListener("pointerout", event => {
+        const card = event.target.closest("[data-map-card]");
+        if (card && !card.contains(event.relatedTarget)) setMapCardTooltip(null);
+      });
+      els.mapRestaurantList.addEventListener("focusin", event => {
+        const card = event.target.closest("[data-map-card]");
+        if (card) setMapCardTooltip(card);
+      });
+      els.mapRestaurantList.addEventListener("focusout", event => {
+        const card = event.target.closest("[data-map-card]");
+        if (card && !card.contains(event.relatedTarget)) setMapCardTooltip(null);
+      });
+      els.mapRestaurantList.addEventListener("scroll", () => setMapCardTooltip(null), { passive: true });
       els.mapRestaurantList.addEventListener("click", event => {
         if (event.target.closest("a")) return;
-        const addButton = event.target.closest("[data-add-from-map]");
-        if (addButton) {
-          event.stopPropagation();
-          addRestaurantFromMap(addButton.dataset.addFromMap);
-          return;
-        }
         const card = event.target.closest("[data-map-card]");
         if (!card) return;
         const restaurant = restaurantById(card.dataset.restaurantId);
@@ -2262,6 +4084,23 @@
         if (!card) return;
         event.dataTransfer.effectAllowed = "copy";
         event.dataTransfer.setData("text/plain", card.dataset.restaurantId);
+      });
+      els.mapRestaurantList.addEventListener("dragend", () => {
+        els.pickChips.classList.remove("is-dragover");
+        els.wheelDropZone.classList.remove("is-dragover");
+      });
+      els.pickChips.addEventListener("dragover", event => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        els.pickChips.classList.add("is-dragover");
+      });
+      els.pickChips.addEventListener("dragleave", event => {
+        if (!els.pickChips.contains(event.relatedTarget)) els.pickChips.classList.remove("is-dragover");
+      });
+      els.pickChips.addEventListener("drop", event => {
+        event.preventDefault();
+        els.pickChips.classList.remove("is-dragover");
+        addRestaurantFromMap(event.dataTransfer.getData("text/plain"));
       });
       els.wheelDropZone.addEventListener("dragover", event => {
         event.preventDefault();
@@ -2283,11 +4122,17 @@
         event.preventDefault();
         const person = els.pickerName.value.trim();
         const restaurantId = els.restaurantSelect.value;
-        if (!person || !restaurantId) return;
-        addPick(person, restaurantId);
-        els.pickerName.value = "";
-        els.restaurantSelect.value = "";
-        els.pickerName.focus();
+        if (!person) {
+          showToast("Choose a teammate.");
+          setTeammateMenu("wheel", true);
+          return;
+        }
+        if (!restaurantId) {
+          showToast("Choose a restaurant.");
+          setWheelRestaurantMenu(true);
+          return;
+        }
+        addReadyWheelPick();
       });
 
       els.pickChips.addEventListener("click", event => {
@@ -2318,6 +4163,11 @@
         const category = els.restaurantCategoryInput.value.trim();
         const address = els.restaurantAddressInput.value.trim();
         const rating = normalizeRating(els.restaurantRatingInput.value);
+        if (!category) {
+          showToast("Choose a food type.");
+          setRestaurantCategoryMenu(true);
+          return;
+        }
         if (els.restaurantRatingInput.value && rating === "") return showToast("Rating must be between 1.0 and 5.0.");
         const duplicate = state.restaurants.find(item => normalize(item.name) === normalize(name) && item.id !== id);
         if (duplicate) return showToast("That restaurant is already in the list.");
@@ -2326,7 +4176,19 @@
         if (id) {
           const restaurant = restaurantById(id);
           if (!restaurant) return;
+          const identityChanged = normalize(restaurant.name) !== normalize(name) ||
+            normalize(restaurant.address) !== normalize(address);
           Object.assign(restaurant, { name, category, address, rating });
+          if (identityChanged) {
+            Object.assign(restaurant, {
+              googlePlaceId: "",
+              googleAddress: "",
+              latitude: null,
+              longitude: null,
+              ratingUpdatedAt: "",
+              ratingStatus: "Needs Google refresh"
+            });
+          }
           delete routeCache[id];
           saveRouteCache();
           state.logs.forEach(log => {
@@ -2345,8 +4207,25 @@
         saveState();
         queueCloudOp("upsertRestaurant", { restaurant: savedRestaurant });
         changedLogs.forEach(log => queueCloudOp("upsertLog", { log }));
+        const returnToLog = restaurantDialogReturnsToLog;
+        const returnToWheel = restaurantDialogReturnsToWheel;
+        const returnToMap = restaurantDialogReturnsToMap;
+        restaurantDialogReturnsToLog = false;
+        restaurantDialogReturnsToWheel = false;
+        restaurantDialogReturnsToMap = false;
         closeDialog(els.restaurantDialog);
         renderAll();
+        if (returnToLog) restoreLogAfterRestaurant(savedRestaurant.id);
+        if (returnToWheel) {
+          setWheelRestaurant(savedRestaurant.id);
+          setWheelCollapsed(false);
+          els.restaurantSelectButton.focus();
+        }
+        if (returnToMap) {
+          els.mapRestaurantSearch.value = "";
+          renderMapRestaurantList();
+          showRoute(savedRestaurant);
+        }
       });
 
       els.deleteRestaurantBtn.addEventListener("click", () => {
@@ -2365,42 +4244,222 @@
         showToast("Restaurant deleted.");
       });
 
-      document.querySelectorAll("[data-open-log]").forEach(button => button.addEventListener("click", () => {
-        els.logForm.reset();
-        els.logDate.value = els.lunchDate.value || upcomingFriday();
-        els.logDialog.showModal();
-        requestAnimationFrame(() => els.logPerson.focus());
-      }));
+      els.logDateButton.addEventListener("click", () => {
+        setLogRestaurantMenu(false);
+        setTeammateMenu("log", false);
+        setLogDateMenu(els.logDateMenu.hidden);
+      });
+      els.logDatePreviousMonth.addEventListener("click", () => {
+        logCalendarMonth = new Date(logCalendarMonth.getFullYear(), logCalendarMonth.getMonth() - 1, 1);
+        renderLogDateCalendar();
+      });
+      els.logDateNextMonth.addEventListener("click", () => {
+        logCalendarMonth = new Date(logCalendarMonth.getFullYear(), logCalendarMonth.getMonth() + 1, 1);
+        renderLogDateCalendar();
+      });
+      els.logDateDays.addEventListener("click", event => {
+        const day = event.target.closest("[data-log-date]");
+        if (!day) return;
+        setLogDate(day.dataset.logDate);
+        setLogDateMenu(false);
+        els.logDateButton.focus();
+      });
+      els.logRestaurantButton.addEventListener("click", () => {
+        setCategoryFilterMenu(false);
+        setWheelRestaurantMenu(false);
+        setTeammateMenu("log", false);
+        setLogDateMenu(false);
+        setLogRestaurantMenu(els.logRestaurantMenu.hidden);
+      });
+      els.logRestaurantSearch.addEventListener("input", renderLogRestaurantOptions);
+      els.logRestaurantOptions.addEventListener("click", event => {
+        const option = event.target.closest("[data-log-restaurant]");
+        if (!option) return;
+        setLogRestaurant(option.dataset.logRestaurant);
+        setLogRestaurantMenu(false);
+        els.logRestaurantButton.focus();
+      });
+      els.logTeammateButton.addEventListener("click", () => {
+        setCategoryFilterMenu(false);
+        setWheelRestaurantMenu(false);
+        setLogRestaurantMenu(false);
+        setLogDateMenu(false);
+        setTeammateMenu("wheel", false);
+        setTeammateMenu("log", els.logTeammateMenu.hidden);
+      });
+      els.logTeammateOptions.addEventListener("click", event => {
+        const option = event.target.closest("[data-teammate-name]");
+        if (!option) return;
+        setLogPerson(option.dataset.teammateName);
+        setTeammateMenu("log", false);
+        els.logTeammateButton.focus();
+      });
+      els.showAddLogTeammateBtn.addEventListener("click", () => setTeammateAddMode("log", true));
+      els.cancelAddLogTeammateBtn.addEventListener("click", () => {
+        setTeammateAddMode("log", false);
+        els.showAddLogTeammateBtn.focus();
+      });
+      els.saveLogTeammateBtn.addEventListener("click", () => addTeammate(els.newLogTeammateName.value, "log"));
+      els.newLogTeammateName.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addTeammate(els.newLogTeammateName.value, "log");
+        }
+      });
+      els.logAddRestaurantBtn.addEventListener("click", () => {
+        captureLogDraft();
+        setLogRestaurantMenu(false);
+        closeDialog(els.logDialog);
+        openRestaurantDialog("", { returnToLog: true });
+      });
+      els.restaurantDialog.addEventListener("close", () => {
+        if (restaurantDialogReturnsToLog) restoreLogAfterRestaurant();
+        restaurantDialogReturnsToWheel = false;
+        restaurantDialogReturnsToMap = false;
+      });
+      document.addEventListener("click", event => {
+        if (!els.logRestaurantMenu.hidden && !els.logRestaurantCombobox.contains(event.target)) {
+          setLogRestaurantMenu(false);
+        }
+        if (!els.restaurantSelectMenu.hidden && !els.wheelRestaurantCombobox.contains(event.target)) {
+          setWheelRestaurantMenu(false);
+        }
+        if (!els.categoryFilterMenu.hidden && !els.categoryFilterCombobox.contains(event.target)) {
+          setCategoryFilterMenu(false);
+        }
+        if (!els.teammateSelectMenu.hidden && !els.teammateCombobox.contains(event.target)) {
+          setTeammateMenu("wheel", false);
+        }
+        if (!els.logTeammateMenu.hidden && !els.logTeammateCombobox.contains(event.target)) {
+          setTeammateMenu("log", false);
+        }
+        if (!els.restaurantCategoryMenu.hidden && !els.restaurantCategoryCombobox.contains(event.target)) {
+          setRestaurantCategoryMenu(false);
+        }
+        if (!els.logDateMenu.hidden && !els.logDatePicker.contains(event.target)) {
+          setLogDateMenu(false);
+        }
+        if (!els.mapFilterMenu.hidden && !els.mapFilterControl.contains(event.target)) {
+          setMapFilterMenu(false);
+        }
+      });
+      els.logDatePicker.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !els.logDateMenu.hidden) {
+          event.stopPropagation();
+          setLogDateMenu(false);
+          els.logDateButton.focus();
+        }
+      });
+      els.logRestaurantCombobox.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !els.logRestaurantMenu.hidden) {
+          event.stopPropagation();
+          setLogRestaurantMenu(false);
+          els.logRestaurantButton.focus();
+        }
+      });
+      els.wheelRestaurantCombobox.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !els.restaurantSelectMenu.hidden) {
+          event.stopPropagation();
+          setWheelRestaurantMenu(false);
+          els.restaurantSelectButton.focus();
+        }
+      });
+      els.categoryFilterCombobox.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !els.categoryFilterMenu.hidden) {
+          event.stopPropagation();
+          setCategoryFilterMenu(false);
+          els.categoryFilterButton.focus();
+        }
+      });
+      els.restaurantCategoryCombobox.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !els.restaurantCategoryMenu.hidden) {
+          event.stopPropagation();
+          setRestaurantCategoryMenu(false);
+          els.restaurantCategoryButton.focus();
+        }
+      });
+      els.teammateCombobox.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !els.teammateSelectMenu.hidden) {
+          event.stopPropagation();
+          setTeammateMenu("wheel", false);
+          els.teammateSelectButton.focus();
+        }
+      });
+      els.logTeammateCombobox.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !els.logTeammateMenu.hidden) {
+          event.stopPropagation();
+          setTeammateMenu("log", false);
+          els.logTeammateButton.focus();
+        }
+      });
+
+      document.querySelectorAll("[data-open-log]").forEach(button => button.addEventListener("click", () => openLogDialog()));
+      els.logRatingControl.addEventListener("pointermove", event => {
+        const star = event.target.closest("[data-log-rating]");
+        renderLogRating(star ? ratingFromPointer(star, event.clientX) : els.logRating.value, Boolean(star));
+      });
+      els.logRatingControl.addEventListener("pointerleave", () => renderLogRating(els.logRating.value));
+      els.logRatingControl.addEventListener("click", event => {
+        const star = event.target.closest("[data-log-rating]");
+        if (!star) return;
+        const rating = event.detail === 0
+          ? Number(star.dataset.logRating)
+          : ratingFromPointer(star, event.clientX);
+        setLogRating(rating);
+      });
+      els.clearLogRatingBtn.addEventListener("click", () => setLogRating(""));
 
       els.logForm.addEventListener("submit", event => {
         event.preventDefault();
         const restaurant = restaurantById(els.logRestaurant.value);
-        if (!restaurant) return;
-        const log = {
+        if (!els.logPerson.value.trim()) {
+          showToast("Choose the winning teammate.");
+          setTeammateMenu("log", true);
+          return;
+        }
+        if (!restaurant) {
+          showToast("Choose a restaurant for this lunch.");
+          setLogRestaurantMenu(true);
+          return;
+        }
+        const existing = state.logs.find(log => log.id === els.editingLogId.value);
+        const log = existing || {
           id: uid("log"),
+          createdAt: Date.now()
+        };
+        Object.assign(log, {
           date: els.logDate.value,
           restaurantId: restaurant.id,
           restaurantName: restaurant.name,
           person: els.logPerson.value.trim(),
           notes: els.logNotes.value.trim(),
-          createdAt: Date.now()
-        };
-        state.logs.push(log);
+          rating: els.logRating.value ? Number(els.logRating.value) : ""
+        });
+        if (!existing) state.logs.push(log);
         saveState();
         queueCloudOp("upsertLog", { log });
         closeDialog(els.logDialog);
         renderRecords();
-        showToast("Past lunch added.");
+        renderRestaurantList();
+        renderMapRestaurantList();
+        showToast(existing ? "Lunch log entry updated." : "Past lunch added.");
       });
 
       els.historyList.addEventListener("click", event => {
-        const button = event.target.closest("[data-delete-log]");
-        if (!button) return;
-        const id = button.dataset.deleteLog;
+        const editButton = event.target.closest("[data-edit-log]");
+        if (editButton) {
+          openLogDialog(editButton.dataset.editLog);
+          return;
+        }
+        const deleteButton = event.target.closest("[data-delete-log]");
+        if (!deleteButton) return;
+        const id = deleteButton.dataset.deleteLog;
         state.logs = state.logs.filter(log => log.id !== id);
         saveState();
         queueCloudOp("deleteLog", { id });
         renderRecords();
+        renderRestaurantList();
+        renderMapRestaurantList();
         showToast("Lunch log entry removed.");
       });
 
@@ -2452,9 +4511,36 @@
       document.querySelectorAll("[data-close-dialog]").forEach(button => button.addEventListener("click", () => {
         closeDialog(button.closest("dialog"));
       }));
-      document.querySelectorAll("dialog").forEach(dialog => dialog.addEventListener("click", event => {
-        if (event.target === dialog) closeDialog(dialog);
-      }));
+      document.querySelectorAll("dialog").forEach(dialog => {
+        dialog.addEventListener("click", event => {
+          if (event.target === dialog) closeDialog(dialog);
+        });
+        dialog.addEventListener("close", () => {
+          if (els.toast.parentElement !== dialog || !els.toast.classList.contains("show")) return;
+          if (typeof els.toast.hidePopover === "function" && els.toast.matches(":popover-open")) {
+            els.toast.hidePopover();
+          }
+          const remainingDialogs = [...document.querySelectorAll("dialog[open]")];
+          (remainingDialogs[remainingDialogs.length - 1] || document.body).appendChild(els.toast);
+          if (typeof els.toast.showPopover === "function") els.toast.showPopover();
+        });
+      });
+      if ("MutationObserver" in window) {
+        const dialogLayerObserver = new MutationObserver(() => {
+          if (!els.toast.classList.contains("show")) return;
+          const openDialogs = [...document.querySelectorAll("dialog[open]")];
+          const activeDialog = openDialogs[openDialogs.length - 1];
+          if (!activeDialog || els.toast.parentElement === activeDialog) return;
+          if (typeof els.toast.hidePopover === "function" && els.toast.matches(":popover-open")) {
+            els.toast.hidePopover();
+          }
+          activeDialog.appendChild(els.toast);
+          if (typeof els.toast.showPopover === "function") els.toast.showPopover();
+        });
+        document.querySelectorAll("dialog").forEach(dialog => {
+          dialogLayerObserver.observe(dialog, { attributes: true, attributeFilter: ["open"] });
+        });
+      }
 
       document.getElementById("exportBtn").addEventListener("click", exportData);
       document.getElementById("importBtn").addEventListener("click", () => els.importInput.click());
@@ -2463,18 +4549,27 @@
       });
 
       window.addEventListener("resize", drawWheel);
+      window.addEventListener("pageshow", () => window.scrollTo(0, 0));
       if ("ResizeObserver" in window) new ResizeObserver(drawWheel).observe(els.wheelCanvas);
       document.addEventListener("visibilitychange", () => {
         if (!document.hidden && backendUrl && Date.now() - lastCloudPull > 30000) syncFromCloud();
       });
 
-      els.lunchDate.value = upcomingFriday();
-      els.logDate.value = upcomingFriday();
+      const friday = upcomingFriday();
+      els.lunchDate.value = friday;
+      els.lunchDateDisplay.dateTime = friday;
+      els.lunchDateDisplay.textContent = new Date(`${friday}T12:00:00`).toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "short",
+        day: "numeric"
+      });
+      setLogDate(friday);
       renderAll();
       const initialTab = ["map", "restaurants", "records"].includes(location.hash.replace("#", ""))
         ? location.hash.replace("#", "")
         : "map";
       activateTab(initialTab, false);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
       setSyncStatus(backendUrl ? "syncing" : "local");
       initMap();
       if (backendUrl) syncFromCloud();
