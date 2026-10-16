@@ -1277,7 +1277,14 @@
       flex-direction: column;
       overflow-y: auto;
       border-radius: 22px;
-      transition: opacity .2s ease, transform .2s ease;
+      transition: opacity .32s ease, transform .36s cubic-bezier(.4, 0, .2, 1);
+      will-change: opacity, transform;
+    }
+    .wheel-map-overlay.is-entering,
+    .wheel-map-overlay.is-leaving {
+      pointer-events: none;
+      opacity: 0;
+      transform: translateX(calc(100% + 32px));
     }
     .wheel-overlay-head { align-items: center; margin-bottom: 10px; }
     .wheel-overlay-head h2 { margin-bottom: 0; color: var(--brown); font-size: 23px; font-weight: 900; }
@@ -1411,6 +1418,7 @@
       left: 432px;
       padding: 13px;
       border-radius: 18px;
+      transition: right .36s cubic-bezier(.4, 0, .2, 1), left .36s cubic-bezier(.4, 0, .2, 1);
     }
     .map-experience.wheel-is-collapsed .route-map-overlay { right: 64px; left: 432px; }
     .route-title { align-items: center; margin-bottom: 8px; }
@@ -2350,6 +2358,7 @@
       let routeLayer = null;
       let routeRequest = 0;
       let toastTimer = null;
+      let wheelTransitionTimer = null;
       let syncPromise = null;
       let lastCloudPull = 0;
       let activeRestaurantId = "";
@@ -3903,11 +3912,56 @@
       }
 
       function setWheelCollapsed(collapsed) {
-        els.wheelPanel.hidden = collapsed;
-        els.expandWheelBtn.hidden = !collapsed;
-        els.mapExperience.classList.toggle("wheel-is-collapsed", collapsed);
-        if (!collapsed) setTimeout(drawWheel, 30);
-        if (map) setTimeout(() => map.invalidateSize(), 220);
+        const panel = els.wheelPanel;
+        const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const duration = reduceMotion ? 0 : 380;
+        clearTimeout(wheelTransitionTimer);
+
+        if (collapsed) {
+          if (panel.hidden) {
+            els.expandWheelBtn.hidden = false;
+            els.mapExperience.classList.add("wheel-is-collapsed");
+            return;
+          }
+          panel.classList.remove("is-entering");
+          panel.classList.add("is-leaving");
+          panel.setAttribute("aria-hidden", "true");
+          els.mapExperience.classList.add("wheel-is-collapsed");
+
+          const finishCollapse = () => {
+            panel.hidden = true;
+            panel.classList.remove("is-leaving");
+            els.expandWheelBtn.hidden = false;
+            if (map) map.invalidateSize();
+          };
+          if (duration) wheelTransitionTimer = setTimeout(finishCollapse, duration);
+          else finishCollapse();
+          return;
+        }
+
+        if (!panel.hidden && !panel.classList.contains("is-leaving") &&
+            !els.mapExperience.classList.contains("wheel-is-collapsed")) {
+          drawWheel();
+          return;
+        }
+        panel.hidden = false;
+        panel.classList.remove("is-leaving");
+        panel.classList.add("is-entering");
+        panel.removeAttribute("aria-hidden");
+        els.expandWheelBtn.hidden = true;
+        els.mapExperience.classList.remove("wheel-is-collapsed");
+        setTimeout(drawWheel, 30);
+
+        if (duration) {
+          requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.remove("is-entering")));
+          wheelTransitionTimer = setTimeout(() => {
+            panel.classList.remove("is-entering");
+            if (map) map.invalidateSize();
+          }, duration);
+        } else {
+          panel.classList.remove("is-entering");
+          if (map) map.invalidateSize();
+        }
       }
 
       document.querySelectorAll("[data-tab-target]").forEach(link => link.addEventListener("click", event => {
