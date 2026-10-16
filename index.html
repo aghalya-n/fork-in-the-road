@@ -385,17 +385,18 @@
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
-      align-items: center;
+      align-items: start;
       padding: 11px 11px 11px 13px;
       background: var(--cream);
       border: 1px solid transparent;
       border-radius: 15px;
     }
     .restaurant-item:hover { background: var(--white); border-color: var(--line); }
+    .restaurant-copy { padding: 7px 0; }
     .restaurant-name { display: flex; min-width: 0; align-items: center; gap: 5px; color: var(--brown); font-family: var(--font-heading); font-size: 14px; font-weight: 900; }
     .restaurant-name-text { overflow: hidden; min-width: 0; text-overflow: ellipsis; white-space: nowrap; }
-    .visited-icon { display: inline-grid; width: 16px; height: 16px; flex: 0 0 16px; place-items: center; color: var(--brown); }
-    .visited-icon svg { display: block; width: 16px; height: 16px; }
+    .visited-icon { position: relative; display: inline-grid; width: 14px; height: 14px; flex: 0 0 14px; place-items: center; color: var(--brown); }
+    .visited-icon svg { display: block; width: 14px; height: 14px; }
     .restaurant-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; color: var(--muted); font-size: 11px; }
     .dot { width: 4px; height: 4px; background: var(--purple); border-radius: 50%; }
     .restaurant-actions { display: flex; gap: 4px; }
@@ -1153,6 +1154,7 @@
     .map-heading-action::after,
     .mini-action::after,
     .history-action::after,
+    .visited-icon::after,
     .route-map-toolbar button::after {
       position: absolute;
       z-index: 20;
@@ -1167,6 +1169,7 @@
     .map-heading-action::after,
     .mini-action::after,
     .history-action::after,
+    .visited-icon::after,
     .route-map-toolbar button::after {
       padding: 6px 9px;
       content: attr(data-tooltip);
@@ -1185,6 +1188,7 @@
     .mini-action:focus-visible::after,
     .history-action:hover::after,
     .history-action:focus-visible::after,
+    .visited-icon:hover::after,
     .route-map-toolbar button:hover::after,
     .route-map-toolbar button:focus-visible::after {
       opacity: 1;
@@ -3043,10 +3047,10 @@
         }
         els.restaurantList.innerHTML = matches.map(restaurant => `
           <article class="restaurant-item">
-            <div>
+            <div class="restaurant-copy">
               <div class="restaurant-name" title="${escapeHTML(restaurant.name)}">
                 <span class="restaurant-name-text">${escapeHTML(restaurant.name)}</span>
-                ${restaurantWasVisited(restaurant) ? `<span class="visited-icon" title="Visited" aria-label="Visited">${LOG_ICONS.visited}</span>` : ""}
+                ${restaurantWasVisited(restaurant) ? `<span class="visited-icon" data-tooltip="visited" aria-label="Visited">${LOG_ICONS.visited}</span>` : ""}
               </div>
               <div class="restaurant-meta"><span>${escapeHTML(restaurant.category)}</span>${restaurant.rating ? `<span class="dot"></span><span>★ ${restaurant.rating.toFixed(1)}</span>` : ""}${restaurant.address ? `<span class="dot"></span><span>Address saved</span>` : ""}</div>
             </div>
@@ -3177,7 +3181,7 @@
               <div class="map-card-top">
                 <h3>
                   <span class="restaurant-name-text">${escapeHTML(restaurant.name)}</span>
-                  ${restaurantWasVisited(restaurant) ? `<span class="visited-icon" title="Visited" aria-label="Visited">${LOG_ICONS.visited}</span>` : ""}
+                  ${restaurantWasVisited(restaurant) ? `<span class="visited-icon" data-tooltip="visited" aria-label="Visited">${LOG_ICONS.visited}</span>` : ""}
                 </h3>
               </div>
               <div class="map-card-meta"><span>${escapeHTML(restaurant.category)}</span>${ratingMarkup}</div>
